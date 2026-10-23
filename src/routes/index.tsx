@@ -48,7 +48,7 @@ function Index() {
           </div>
         </div>
         <div className="relative">
-          <img src="/images/sisig.jpg" alt="Sizzling sisig" width={816} height={816} className="aspect-square w-full rounded-[2rem] object-cover shadow-warm" />
+          <img src="/images/sisig.jjjjpg" alt="Sizzling sisig" width={816} height={816} className="aspect-square w-full rounded-[2rem] object-cover shadow-warm" />
         </div>
       </section>
 
