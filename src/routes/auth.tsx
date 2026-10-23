@@ -55,7 +55,7 @@ function AuthPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-4xl font-extrabold">Welcome to <span className="text-primary">Roadside <Paddles Cafe</span></h1>
+      <h1 className="text-4xl font-extrabold">Welcome to <span className="text-primary">Roadside Cafe</span></h1>
       <p className="mt-2 text-muted-foreground">Sign in to order, track deliveries, or apply as a rider.</p>
       <div className="mt-6 rounded-2xl border bg-card p-6">
         <Tabs defaultValue="login">
