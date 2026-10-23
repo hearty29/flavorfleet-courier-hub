@@ -23,7 +23,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4">
         <Link to="/" className="mr-auto font-display text-2xl font-extrabold text-primary">
-          Roadside<span className="text-foreground"> Cafe</span>
+          Roadside<span className="text-foreground"> Paddles</span>
         </Link>
         {roles.includes("admin") && (
           <Button asChild variant="ghost" size="sm"><Link to="/admin"><Shield /> <span className="hidden sm:inline">Admin</span></Link></Button>
