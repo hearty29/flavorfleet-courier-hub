@@ -9,7 +9,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/orders")({
-  validateSearch: (s: Record<string, unknown>) => ({ id: typeof s.id === "string" ? s.id : undefined }),
   head: () => ({ meta: [{ title: "My orders — KainGo" }, { name: "description", content: "Track your food deliveries." }, { property: "og:title", content: "My orders — KainGo" }, { property: "og:description", content: "Track your food deliveries." }] }),
   component: Orders,
 });

@@ -46,7 +46,7 @@ function ApplyRider() {
       vehicle_type: vehicle, plate_number: String(f.get("plate") || ""), license_number: String(f.get("license")), experience: String(f.get("experience") || ""),
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Application submitted!");
     qc.invalidateQueries({ queryKey: ["my-app"] });
   };

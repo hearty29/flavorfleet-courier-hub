@@ -41,10 +41,10 @@ function Checkout() {
     });
     if (!error) await supabase.from("profiles").update({ address, phone, full_name: name }).eq("id", session!.user.id);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     clear();
     toast.success("Order placed!");
-    navigate({ to: "/orders", search: { id: data as string } });
+    void data; navigate({ to: "/orders" });
   };
 
   if (!items.length)

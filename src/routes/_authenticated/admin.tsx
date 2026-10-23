@@ -129,7 +129,7 @@ function MenuTab() {
       price: Number(f.get("price")), image_url: String(f.get("image_url")) || null, available: editing?.available ?? true,
     };
     const { error } = editing?.id ? await supabase.from("menu_items").update(row).eq("id", editing.id) : await supabase.from("menu_items").insert(row);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setEditing(null); refresh();
   };
   const remove = async (id: string) => {
