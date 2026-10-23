@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Roadside Cafe — Filipino food delivered hot" },
+      { title: "Roadside Paddles — Filipino food delivered hot" },
       { name: "description", content: "Order adobo, sisig, pancit and more. Cash on delivery, fast riders." },
       { property: "og:title", content: "Roadside Cafe — Filipino food delivered hot" },
       { property: "og:description", content: "Order adobo, sisig, pancit and more. Cash on delivery, fast riders." },
