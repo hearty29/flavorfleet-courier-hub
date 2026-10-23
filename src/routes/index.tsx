@@ -41,7 +41,7 @@ function Index() {
           <h1 className="mt-4 text-5xl font-extrabold leading-[0.95] md:text-7xl">
             Food & Coffee,<br /><span className="text-primary">hatid sa'yo!</span>
           </h1>
-          <p className="mt-4 max-w-md text-lg text-muted-foreground">Home-style Filipino favorites cooked fresh and brought hot to your door.</p>
+          <p className="mt-4 max-w-md text-lg text-muted-foreground">Experience rich, home-style Filipino comfort food paired with specialty brews, freshly prepared and delivered hot right to your doorstep.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button size="lg" asChild><a href="#menu">Order now</a></Button>
             <Button size="lg" variant="outline" asChild><Link to="/apply-rider"><Bike /> Become a rider</Link></Button>
