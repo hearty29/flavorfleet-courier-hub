@@ -39,7 +39,7 @@ function Index() {
         <div>
           <span className="inline-block rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">Delivered in ~30 mins</span>
           <h1 className="mt-4 text-5xl font-extrabold leading-[0.95] md:text-7xl">
-           Test,<br /><span className="text-primary">hatid sa'yo.</span>
+           Food Delivery,<br /><span className="text-primary">hatid sa'yo.</span>
           </h1>
           <p className="mt-4 max-w-md text-lg text-muted-foreground">Home-style Filipino favorites cooked fresh and brought hot to your door.</p>
           <div className="mt-6 flex flex-wrap gap-3">
