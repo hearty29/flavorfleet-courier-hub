@@ -14,16 +14,261 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      menu_items: {
+        Row: {
+          available: boolean
+          category: string
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+        }
+        Insert: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+        }
+        Update: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          id: string
+          menu_item_id: string | null
+          name: string
+          order_id: string
+          price: number
+          quantity: number
+        }
+        Insert: {
+          id?: string
+          menu_item_id?: string | null
+          name: string
+          order_id: string
+          price: number
+          quantity: number
+        }
+        Update: {
+          id?: string
+          menu_item_id?: string | null
+          name?: string
+          order_id?: string
+          price?: number
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          address: string
+          created_at: string
+          customer_id: string
+          customer_name: string
+          delivery_fee: number
+          id: string
+          notes: string | null
+          payment_method: string
+          phone: string
+          rider_id: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          customer_id: string
+          customer_name?: string
+          delivery_fee?: number
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          phone: string
+          rider_id?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          customer_id?: string
+          customer_name?: string
+          delivery_fee?: number
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          phone?: string
+          rider_id?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      rider_applications: {
+        Row: {
+          address: string
+          created_at: string
+          experience: string | null
+          full_name: string
+          id: string
+          license_number: string
+          phone: string
+          plate_number: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          user_id: string
+          vehicle_type: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          experience?: string | null
+          full_name: string
+          id?: string
+          license_number: string
+          phone: string
+          plate_number?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          user_id: string
+          vehicle_type: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          experience?: string | null
+          full_name?: string
+          id?: string
+          license_number?: string
+          phone?: string
+          plate_number?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          user_id?: string
+          vehicle_type?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_set_role: {
+        Args: {
+          _grant: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+          _user: string
+        }
+        Returns: undefined
+      }
+      cancel_my_order: { Args: { _order: string }; Returns: undefined }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      place_order: {
+        Args: {
+          _address: string
+          _items: Json
+          _name: string
+          _notes: string
+          _payment: string
+          _phone: string
+        }
+        Returns: string
+      }
+      review_rider_application: {
+        Args: { _app: string; _approve: boolean }
+        Returns: undefined
+      }
+      rider_accept_order: { Args: { _order: string }; Returns: undefined }
+      rider_update_status: {
+        Args: {
+          _order: string
+          _status: Database["public"]["Enums"]["order_status"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "rider" | "customer"
+      application_status: "pending" | "approved" | "rejected"
+      order_status:
+        | "pending"
+        | "preparing"
+        | "ready"
+        | "picked_up"
+        | "delivered"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +395,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "rider", "customer"],
+      application_status: ["pending", "approved", "rejected"],
+      order_status: [
+        "pending",
+        "preparing",
+        "ready",
+        "picked_up",
+        "delivered",
+        "cancelled",
+      ],
+    },
   },
 } as const
