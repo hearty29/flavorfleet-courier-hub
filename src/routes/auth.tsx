@@ -12,10 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in or register — KainGo" },
-      { name: "description", content: "Sign in or create your KainGo account to order food." },
-      { property: "og:title", content: "Sign in or register — KainGo" },
-      { property: "og:description", content: "Sign in or create your KainGo account to order food." },
+      { title: "Sign in or register — Roadside Cafe" },
+      { name: "description", content: "Sign in or create your Roadside Cafe account to order food." },
+      { property: "og:title", content: "Sign in or register — Roadside Cafe" },
+      { property: "og:description", content: "Sign in or create your Roadside Cafe account to order food." },
     ],
   }),
   component: AuthPage,
@@ -55,7 +55,7 @@ function AuthPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-4xl font-extrabold">Welcome to <span className="text-primary">KainGo</span></h1>
+      <h1 className="text-4xl font-extrabold">Welcome to <span className="text-primary">Roadside Cafe</span></h1>
       <p className="mt-2 text-muted-foreground">Sign in to order, track deliveries, or apply as a rider.</p>
       <div className="mt-6 rounded-2xl border bg-card p-6">
         <Tabs defaultValue="login">

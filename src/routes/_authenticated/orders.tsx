@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/orders")({
-  head: () => ({ meta: [{ title: "My orders — KainGo" }, { name: "description", content: "Track your food deliveries." }, { property: "og:title", content: "My orders — KainGo" }, { property: "og:description", content: "Track your food deliveries." }] }),
+  head: () => ({ meta: [{ title: "My orders — Roadside Cafe" }, { name: "description", content: "Track your food deliveries." }, { property: "og:title", content: "My orders — Roadside Cafe" }, { property: "og:description", content: "Track your food deliveries." }] }),
   component: Orders,
 });
 
