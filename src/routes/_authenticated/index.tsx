@@ -43,10 +43,7 @@ function Index() {
                                       }
                                             `}</style>
       <section className="grid items-center gap-8 py-10 md:grid-cols-2 md:py-16">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-800/40 bg-amber-950/40 px-3 py-1 text-xs font-semibold text-amber-500">
-          <Clock className="h-3.5 w-3.5" />
-            <span>Fast Delivery • Hot in 30 Mins</span>
-            
+        <span className="inline-block rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">Delivered in 30 mins</span>
           <h1 className="mt-4 text-5xl font-extrabold leading-[0.95] md:text-7xl">
               Food x Coffee,<br /><span className="text-primary">hatid sa'yo!</span>
           </h1>
