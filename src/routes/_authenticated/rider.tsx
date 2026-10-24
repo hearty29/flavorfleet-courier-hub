@@ -1,160 +1,92 @@
-import { useState, useEffect } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/lib/auth';
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { MapPin, Phone } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { peso } from "@/lib/cart";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute('/_authenticated/rider')({
-  component: RiderDashboard,
+export const Route = createFileRoute("/_authenticated/rider")({
+  head: () => ({ meta: [{ title: "Rider dashboard — Roadside Cafe" }, { name: "description", content: "Accept and deliver Roadside Cafe orders." }, { property: "og:title", content: "Rider dashboard — Roadside Cafe" }, { property: "og:description", content: "Accept and deliver Roadside Cafe orders." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
+  component: Rider,
 });
 
-interface Order {
-  id: string;
-  customer_name: string;
-  total_amount: number;
-  address: string;
-  phone: string;
-  items: string;
-  status: string;
-  rider_name?: string;
-  rider_phone?: string;
-}
-
-export function RiderDashboard() {
-  const { user } = useAuth();
-  const [activeDeliveries, setActiveDeliveries] = useState<Order[]>([]);
-  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Get rider details from logged-in user session/metadata
-  const riderName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Assigned Rider';
-  const riderPhone = user?.user_metadata?.phone || user?.phone || '09123456789';
-
-  const fetchOrders = async () => {
-    setLoading(true);
-
-    // Fetch active deliveries for this rider
-    const { data: activeData } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('rider_id', user?.id)
-      .eq('status', 'picked_up');
-
-    // Fetch orders ready for pickup
-    const { data: availableData } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('status', 'pending');
-
-    if (activeData) setActiveDeliveries(activeData);
-    if (availableData) setAvailableOrders(availableData);
-    setLoading(false);
-  };
+function Rider() {
+  const { session, roles, loading } = useAuth();
+  const qc = useQueryClient();
+  const uid = session?.user.id;
+  const isRider = roles.includes("rider");
+  const { data: orders = [] } = useQuery({
+    queryKey: ["rider-orders", uid],
+    enabled: isRider,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("orders").select("*, order_items(*)").in("status", ["ready", "picked_up", "delivered"]).order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
-    if (user) {
-      fetchOrders();
-    }
-  }, [user]);
+    if (!isRider) return;
+    const ch = supabase.channel(`rider-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => qc.invalidateQueries({ queryKey: ["rider-orders"] }))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [isRider, qc]);
 
-  // Handle Pick Up / Accept action
-  const handlePickUp = async (orderId: string) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        status: 'picked_up',
-        rider_id: user?.id,
-        rider_name: riderName,
-        rider_phone: riderPhone,
-      })
-      .eq('id', orderId);
+  if (loading) return null;
+  if (!isRider) return <main className="mx-auto max-w-md px-4 py-16 text-center"><h1 className="text-2xl font-bold">Riders only</h1><p className="mt-2 text-muted-foreground">Apply as a rider to access this dashboard.</p></main>;
 
-    if (!error) {
-      fetchOrders();
-    } else {
-      alert('Failed to update order status: ' + error.message);
-    }
+  const act = async (fn: () => PromiseLike<{ error: { message: string } | null }>) => {
+    const { error } = await fn();
+    if (error) toast.error(error.message); else qc.invalidateQueries({ queryKey: ["rider-orders"] });
   };
 
-  // Handle Mark Delivered action
-  const handleMarkDelivered = async (orderId: string) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: 'delivered' })
-      .eq('id', orderId);
+  const available = orders.filter((o) => !o.rider_id && o.status === "ready");
+  const mine = orders.filter((o) => o.rider_id === uid && o.status !== "delivered");
+  const done = orders.filter((o) => o.rider_id === uid && o.status === "delivered");
 
-    if (!error) {
-      fetchOrders();
-    }
-  };
+  const Card = ({ o, children }: { o: (typeof orders)[number]; children?: React.ReactNode }) => (
+    <article className="rounded-2xl border bg-card p-4">
+      <div className="flex items-center justify-between"><p className="font-bold">{o.customer_name || "Customer"} · {peso(o.total)}</p><StatusBadge status={o.status} /></div>
+      <p className="mt-2 flex gap-2 text-sm"><MapPin className="h-4 w-4 shrink-0 text-primary" />{o.address}</p>
+      <p className="flex gap-2 text-sm"><Phone className="h-4 w-4 shrink-0 text-primary" /><a href={`tel:${o.phone}`} className="underline">{o.phone}</a></p>
+      {o.notes && <p className="mt-1 text-sm text-muted-foreground">Note: {o.notes}</p>}
+      <p className="mt-2 text-sm">{o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}</p>
+      <p className="mt-1 text-sm font-medium">Collect cash: {peso(o.total)}</p>
+      <div className="mt-3 flex gap-2">{children}</div>
+    </article>
+  );
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0] p-4 max-w-md mx-auto font-sans">
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">Rider dashboard</h1>
-
-      {/* Profile summary card */}
-      <div className="bg-white p-3 rounded-2xl shadow-sm border mb-4">
-        <p className="text-xs text-gray-500">Logged in as Rider:</p>
-        <p className="font-semibold text-gray-800">{riderName}</p>
-        <p className="text-xs text-gray-600">📞 {riderPhone}</p>
-      </div>
-
-      {/* Active Deliveries */}
-      <h2 className="text-lg font-bold text-gray-900 mb-2">My active deliveries</h2>
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading orders...</p>
-      ) : activeDeliveries.length === 0 ? (
-        <p className="text-sm text-gray-500 mb-4">No active deliveries.</p>
-      ) : (
-        activeDeliveries.map((order) => (
-          <div key={order.id} className="bg-white p-4 rounded-2xl shadow-sm border mb-4 relative">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="font-bold text-gray-900">{order.customer_name}</span>
-                <span className="text-gray-900 font-bold ml-1">· ₱{order.total_amount}</span>
-              </div>
-              <span className="bg-[#E53935] text-white text-xs font-semibold px-3 py-1 rounded-full">
-                Picked Up
-              </span>
-            </div>
-
-            <div className="mt-2 text-sm text-gray-600 space-y-1">
-              <p className="flex items-center gap-1">📍 {order.address}</p>
-              <p className="flex items-center gap-1 text-red-600 font-medium">📞 {order.phone}</p>
-              <p className="text-xs text-gray-500 mt-2">{order.items}</p>
-              <p className="text-xs font-bold text-gray-700">Collect cash: ₱{order.total_amount}</p>
-            </div>
-
-            <button
-              onClick={() => handleMarkDelivered(order.id)}
-              className="mt-4 w-full bg-[#E53935] text-white py-2 rounded-xl font-medium hover:bg-red-700 transition-colors"
-            >
-              Mark delivered
-            </button>
-          </div>
-        ))
-      )}
-
-      {/* Available Orders for Pickup */}
-      <h2 className="text-lg font-bold text-gray-900 mb-2 mt-6">Available orders</h2>
-      {availableOrders.length === 0 ? (
-        <p className="text-sm text-gray-500">No orders waiting for pickup.</p>
-      ) : (
-        availableOrders.map((order) => (
-          <div key={order.id} className="bg-white p-4 rounded-2xl shadow-sm border mb-3">
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-bold text-gray-900">{order.customer_name}</span>
-              <span className="font-bold text-gray-900">₱{order.total_amount}</span>
-            </div>
-            <p className="text-xs text-gray-500 mb-3">📍 {order.address}</p>
-            <button
-              onClick={() => handlePickUp(order.id)}
-              className="w-full bg-black text-white py-2 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
-            >
-              Accept & Pick Up Order
-            </button>
-          </div>
-        ))
-      )}
-    </div>
+    <main className="mx-auto max-w-5xl px-4 py-10">
+      <h1 className="text-3xl font-bold">Rider dashboard</h1>
+      <Button asChild variant="outline" className="mt-3"><Link to="/verification">Rider verification</Link></Button>
+      <p className="text-muted-foreground">Delivered today: {done.filter((o) => new Date(o.updated_at).toDateString() === new Date().toDateString()).length}</p>
+      <section className="mt-6">
+        <h2 className="text-xl font-bold">My active deliveries</h2>
+        {!mine.length && <p className="text-sm text-muted-foreground">None right now.</p>}
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          {mine.map((o) => (
+            <Card key={o.id} o={o}>
+              {o.status === "ready" && <Button onClick={() => act(() => supabase.rpc("rider_update_status", { _order: o.id, _status: "picked_up" }))}>Picked up</Button>}
+              {o.status === "picked_up" && <Button onClick={() => act(() => supabase.rpc("rider_update_status", { _order: o.id, _status: "delivered" }))}>Mark delivered</Button>}
+            </Card>
+          ))}
+        </div>
+      </section>
+      <section className="mt-8">
+        <h2 className="text-xl font-bold">Available orders</h2>
+        {!available.length && <p className="text-sm text-muted-foreground">No orders waiting for pickup.</p>}
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          {available.map((o) => (
+            <Card key={o.id} o={o}><Button onClick={() => act(() => supabase.rpc("rider_accept_order", { _order: o.id }))}>Accept delivery</Button></Card>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
