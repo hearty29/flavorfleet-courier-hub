@@ -46,7 +46,6 @@ function Index() {
         <div className="inline-flex items-center gap-2 rounded-full border border-amber-800/40 bg-amber-950/60 px-4 py-1.5 text-sm font-medium text-amber-500">
           <Clock className="h-4 w-4" />
             <span>Fast Delivery • Hot in 30 Mins</span>
-            </div>
           <h1 className="mt-4 text-5xl font-extrabold leading-[0.95] md:text-7xl">
               Food x Coffee,<br /><span className="text-primary">hatid sa'yo!</span>
           </h1>
