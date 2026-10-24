@@ -102,6 +102,18 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
+          {/* Permanently hides the Lovable badge on all pages */}
+          <style>{`
+            #lovable-badge,
+            a[href*="lovable.dev"],
+            [class*="lovable-badge"] {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              pointer-events: none !important;
+            }
+          `}</style>
+
           <SiteHeader />
           <Outlet />
           <Toaster richColors position="top-center" />
