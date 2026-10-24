@@ -43,11 +43,11 @@ function Index() {
                                             `}</style>
       <section className="grid items-center gap-8 py-10 md:grid-cols-2 md:py-16">
         <div>
-          <span className="inline-block rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">Delivered in ~30 mins</span>
+          <span className="inline-block rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">Delivered in 30 mins</span>
           <h1 className="mt-4 text-5xl font-extrabold leading-[0.95] md:text-7xl">
               Food x Coffee,<br /><span className="text-primary">hatid sa'yo!</span>
           </h1>
-          <p className="mt-4 max-w-md text-lg text-muted-foreground">Home-style Filipino favorites cooked fresh and brought hot to your door.</p>
+          <p className="mt-4 max-w-md text-lg text-muted-foreground">Your daily neighborhood pause. Savor rich espressos, comforting eats, and warm conversations in a place that feels like home.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button size="lg" asChild><a href="#menu">Order now</a></Button>
             <Button size="lg" variant="outline" asChild><Link to="/apply-rider"><Bike /> Become a rider</Link></Button>
