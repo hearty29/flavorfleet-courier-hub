@@ -34,7 +34,6 @@ export function SiteHeader() {
         {session && (
           <Button asChild variant="ghost" size="sm"><Link to="/orders"><Receipt /> <span className="hidden sm:inline">Orders</span></Link></Button>
         )}
-        {session && <Button asChild variant="ghost" size="icon"><Link to="/verification" aria-label="Rider verification" title="Rider verification"><UserRound /></Link></Button>}
         <Button asChild variant="outline" size="sm" className="relative">
           <Link to="/checkout">
             <ShoppingBag />
