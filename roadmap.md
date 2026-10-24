@@ -1,3 +1,4 @@
-- [ ] Add secured photo and ID storage and saved verification fields.
-- [ ] Build rider verification page and navigation with live upload states.
+- [ ] Enable public profile-pictures bucket (blocked by workspace public-bucket policy; owner must allow public buckets).
+- [x] Add secured photo and ID storage and saved verification fields.
+- [x] Build rider verification page and navigation with live upload states.
 - [ ] Test file rules and verify both uploads through the page.

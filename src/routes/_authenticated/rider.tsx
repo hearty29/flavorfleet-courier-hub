@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -64,6 +64,7 @@ function Rider() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-3xl font-bold">Rider dashboard</h1>
+      <Button asChild variant="outline" className="mt-3"><Link to="/verification">Rider verification</Link></Button>
       <p className="text-muted-foreground">Delivered today: {done.filter((o) => new Date(o.updated_at).toDateString() === new Date().toDateString()).length}</p>
       <section className="mt-6">
         <h2 className="text-xl font-bold">My active deliveries</h2>
