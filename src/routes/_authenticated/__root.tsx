@@ -121,26 +121,20 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        {/* Global style override to block Lovable floating badge elements */}
-        <style dangerouslySetInnerHTML={{ __html: `
-          #lovable-badge,
-          [id*="lovable"],
-          a[href*="lovable.dev"],
-          [class*="lovable-badge"],
-          div[style*="z-index: 99999"],
-          iframe[src*="lovable"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            height: 0 !important;
-            width: 0 !important;
-            overflow: hidden !important;
-            position: absolute !important;
-            top: -9999px !important;
-            left: -9999px !important;
-          }
-        ` }} />
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            #lovable-badge,
+            [id*="lovable"],
+            a[href*="lovable.dev"],
+            [class*="lovable-badge"],
+            div[style*="z-index: 99999"] {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              pointer-events: none !important;
+            }
+          `
+        }} />
       </head>
       <body>
         {children}
@@ -163,6 +157,22 @@ function RootComponent() {
 
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
+
+  // Observer to remove any dynamically injected badge elements from the DOM
+  useEffect(() => {
+    const removeBadge = () => {
+      const badge = document.getElementById("lovable-badge") || document.querySelector('[href*="lovable.dev"]');
+      if (badge) {
+        badge.remove();
+      }
+    };
+
+    removeBadge();
+    const observer = new MutationObserver(removeBadge);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
