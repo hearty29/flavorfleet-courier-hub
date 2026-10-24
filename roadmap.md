@@ -1,0 +1,3 @@
+- [ ] Add secured photo and ID storage and saved verification fields.
+- [ ] Build rider verification page and navigation with live upload states.
+- [ ] Test file rules and verify both uploads through the page.
