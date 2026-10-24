@@ -50,7 +50,7 @@ function Index() {
           <p className="mt-4 max-w-md text-lg text-muted-foreground">Your daily neighborhood pause. Savor rich espressos, comforting eats, and warm conversations in a place that feels like home.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button size="lg" asChild><a href="#menu">Order now</a></Button>
-            <Button size="lg" variant="outline" asChild><Link to="/apply-rider"><Bike /> Become a rider</Link></Button>
+            <Button size="lg" variant="outline" asChild><Link to="/apply-rider"><Bike /> Join our team</Link></Button>
           </div>
         </div>
         <div className="relative">
