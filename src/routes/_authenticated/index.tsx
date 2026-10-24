@@ -47,7 +47,7 @@ function Index() {
             Food & Coffee, delivered fresh
           </span>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-            Food, Coffee<span className="text-primary">Para sa'yo!</span>
+            Food & Coffee,<br /><span className="text-primary">hatid sa'yo!</span>
           </h1>
           <p className="mt-4 max-w-md text-lg text-muted-foreground">
             Order adobo, sisig, and your favorite local comfort food right to your doorstep.
