@@ -15,6 +15,13 @@
       "when": 1792814010126,
       "tag": "0001_rider_verification_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792814778770,
+      "tag": "0002_share_rider_with_customer",
+      "breakpoints": true
     }
   ]
 }

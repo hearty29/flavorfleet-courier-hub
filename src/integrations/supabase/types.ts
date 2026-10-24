@@ -262,6 +262,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      order_rider: {
+        Args: { _order: string }
+        Returns: {
+          full_name: string
+          profile_image_url: string
+        }[]
+      }
       place_order: {
         Args: {
           _address: string
