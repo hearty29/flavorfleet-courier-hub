@@ -105,9 +105,6 @@ function ApplyRider() {
             Deliver hot meals around your neighborhood and earn on your own schedule.
           </p>
           {session && (
-            <Button asChild variant="outline" className="mt-4">
-              <Link to="/verification">Profile picture &amp; ID verification</Link>
-            </Button>
           )}
           <ul className="mt-6 space-y-3">
             <li className="flex gap-3"><Clock className="text-primary" /> Choose your own hours</li>
