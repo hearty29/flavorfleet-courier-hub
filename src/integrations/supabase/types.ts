@@ -137,6 +137,7 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          profile_image_url: string | null
         }
         Insert: {
           address?: string | null
@@ -144,6 +145,7 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
+          profile_image_url?: string | null
         }
         Update: {
           address?: string | null
@@ -151,6 +153,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          profile_image_url?: string | null
         }
         Relationships: []
       }
@@ -193,6 +196,30 @@ export type Database = {
           status?: Database["public"]["Enums"]["application_status"]
           user_id?: string
           vehicle_type?: string
+        }
+        Relationships: []
+      }
+      rider_verifications: {
+        Row: {
+          id_document_path: string | null
+          id_type: string | null
+          id_verification_status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id_document_path?: string | null
+          id_type?: string | null
+          id_verification_status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id_document_path?: string | null
+          id_type?: string | null
+          id_verification_status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

@@ -19,6 +19,8 @@ export const Route = createFileRoute("/apply-rider")({
       { name: "description", content: "Apply to deliver food with Roadside Paddles. Flexible hours, weekly payouts." },
       { property: "og:title", content: "Become a Roadside Paddles rider" },
       { property: "og:description", content: "Apply to deliver food with Roadside Cafe. Flexible hours, weekly payouts." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: ApplyRider,
@@ -57,6 +59,7 @@ function ApplyRider() {
         <div>
           <h1 className="text-5xl font-extrabold leading-none">Ride with <span className="text-primary">Roadside Paddles</span></h1>
           <p className="mt-4 text-muted-foreground">Deliver hot meals around your neighborhood and earn on your own schedule.</p>
+          {session && <Button asChild variant="outline" className="mt-4"><Link to="/verification">Profile picture &amp; ID verification</Link></Button>}
           <ul className="mt-6 space-y-3">
             <li className="flex gap-3"><Clock className="text-primary" /> Choose your own hours</li>
             <li className="flex gap-3"><Wallet className="text-primary" /> Earn per delivery</li>

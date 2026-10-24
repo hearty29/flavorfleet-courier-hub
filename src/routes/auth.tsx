@@ -16,6 +16,8 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Sign in or create your Roadside Cafe account to order food." },
       { property: "og:title", content: "Sign in or register — Roadside Cafe" },
       { property: "og:description", content: "Sign in or create your Roadside Cafe account to order food." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: AuthPage,

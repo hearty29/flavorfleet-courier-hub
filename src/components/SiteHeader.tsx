@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ShoppingBag, LogOut, Shield, Bike, Receipt } from "lucide-react";
+import { ShoppingBag, LogOut, Shield, Bike, Receipt, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +34,7 @@ export function SiteHeader() {
         {session && (
           <Button asChild variant="ghost" size="sm"><Link to="/orders"><Receipt /> <span className="hidden sm:inline">Orders</span></Link></Button>
         )}
+        {session && <Button asChild variant="ghost" size="icon"><Link to="/verification" aria-label="Rider verification" title="Rider verification"><UserRound /></Link></Button>}
         <Button asChild variant="outline" size="sm" className="relative">
           <Link to="/checkout">
             <ShoppingBag />

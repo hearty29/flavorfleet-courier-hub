@@ -14,6 +14,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Order adobo, sisig, pancit and more. Cash on delivery, fast riders." },
       { property: "og:title", content: "Roadside Cafe — Filipino food delivered hot" },
       { property: "og:description", content: "Order adobo, sisig, pancit and more. Cash on delivery, fast riders." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,

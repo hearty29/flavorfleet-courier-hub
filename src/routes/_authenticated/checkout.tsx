@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/_authenticated/checkout")({
-  head: () => ({ meta: [{ title: "Checkout — Roadside Cafe" }, { name: "description", content: "Review your cart and place your order." }, { property: "og:title", content: "Checkout — Roadside Cafe" }, { property: "og:description", content: "Review your cart and place your order." }] }),
+  head: () => ({ meta: [{ title: "Checkout — Roadside Cafe" }, { name: "description", content: "Review your cart and place your order." }, { property: "og:title", content: "Checkout — Roadside Cafe" }, { property: "og:description", content: "Review your cart and place your order." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Checkout,
 });
 
