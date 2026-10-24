@@ -121,20 +121,6 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            #lovable-badge,
-            [id*="lovable"],
-            a[href*="lovable.dev"],
-            [class*="lovable-badge"],
-            div[style*="z-index: 99999"] {
-              display: none !important;
-              visibility: hidden !important;
-              opacity: 0 !important;
-              pointer-events: none !important;
-            }
-          `
-        }} />
       </head>
       <body>
         {children}
@@ -158,17 +144,21 @@ function RootComponent() {
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
 
-  // Observer to remove any dynamically injected badge elements from the DOM
+  // Clean DOM mutation observer to remove dynamically injected badges
   useEffect(() => {
-    const removeBadge = () => {
-      const badge = document.getElementById("lovable-badge") || document.querySelector('[href*="lovable.dev"]');
-      if (badge) {
-        badge.remove();
-      }
+    const purgeBadges = () => {
+      const selectors = [
+        "#lovable-badge",
+        '[href*="lovable.dev"]',
+        '[class*="lovable-badge"]',
+      ];
+      selectors.forEach((selector) => {
+        document.querySelectorAll(selector).forEach((el) => el.remove());
+      });
     };
 
-    removeBadge();
-    const observer = new MutationObserver(removeBadge);
+    purgeBadges();
+    const observer = new MutationObserver(purgeBadges);
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => observer.disconnect();
@@ -178,6 +168,19 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
+          {/* Hide Lovable Badge safely via React style element */}
+          <style>{`
+            #lovable-badge,
+            [id*="lovable"],
+            a[href*="lovable.dev"],
+            [class*="lovable-badge"],
+            div[style*="z-index: 99999"] {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              pointer-events: none !important;
+            }
+          `}</style>
           <SiteHeader />
           <Outlet />
           <Toaster richColors position="top-center" />
