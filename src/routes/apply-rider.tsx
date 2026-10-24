@@ -19,6 +19,8 @@ export const Route = createFileRoute("/apply-rider")({
       { name: "description", content: "Apply to deliver food with Roadside Paddles. Flexible hours, weekly payouts." },
       { property: "og:title", content: "Become a Roadside Paddles rider" },
       { property: "og:description", content: "Apply to deliver food with Roadside Cafe. Flexible hours, weekly payouts." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: ApplyRider,

@@ -21,7 +21,7 @@ type MenuItem = Database["public"]["Tables"]["menu_items"]["Row"];
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Admin panel — Roadside Cafe" }, { name: "description", content: "Manage orders, menu and riders." }, { property: "og:title", content: "Admin panel — Roadside Cafe" }, { property: "og:description", content: "Manage orders, menu and riders." }] }),
+  head: () => ({ meta: [{ title: "Admin panel — Roadside Cafe" }, { name: "description", content: "Manage orders, menu and riders." }, { property: "og:title", content: "Admin panel — Roadside Cafe" }, { property: "og:description", content: "Manage orders, menu and riders." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Admin,
 });
 
