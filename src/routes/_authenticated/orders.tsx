@@ -1,83 +1,126 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { peso } from "@/lib/cart";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth';
 
-export const Route = createFileRoute("/_authenticated/orders")({
-  head: () => ({ meta: [{ title: "My orders — Roadside Cafe" }, { name: "description", content: "Track your food deliveries." }, { property: "og:title", content: "My orders — Roadside Cafe" }, { property: "og:description", content: "Track your food deliveries." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
-  component: Orders,
+export const Route = createFileRoute('/_authenticated/orders')({
+  component: CustomerOrdersPage,
 });
 
-const steps = ["pending", "preparing", "ready", "picked_up", "delivered"];
+interface Order {
+  id: string;
+  items: string;
+  total_amount: number;
+  status: 'pending' | 'picked_up' | 'delivered';
+  rider_name?: string;
+  rider_phone?: string;
+  created_at: string;
+}
 
-function Orders() {
-  const { session } = useAuth();
-  const qc = useQueryClient();
-  const uid = session?.user.id;
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["my-orders", uid],
-    enabled: !!uid,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orders").select("*, order_items(*)").eq("customer_id", uid!).order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+export function CustomerOrdersPage() {
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!uid) return;
-    const ch = supabase.channel(`my-orders-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `customer_id=eq.${uid}` }, () => qc.invalidateQueries({ queryKey: ["my-orders"] }))
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [uid, qc]);
+  const fetchCustomerOrders = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  const cancel = async (id: string) => {
-    const { error } = await supabase.rpc("cancel_my_order", { _order: id });
-    if (error) toast.error(error.message); else qc.invalidateQueries({ queryKey: ["my-orders"] });
+    if (!error && data) {
+      setOrders(data);
+    }
+    setLoading(false);
   };
 
-  return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-3xl font-bold">My orders</h1>
-      {isLoading && <p className="mt-4 text-muted-foreground">Loading…</p>}
-      {!isLoading && !orders.length && <p className="mt-4 text-muted-foreground">No orders yet.</p>}
-      <div className="mt-6 space-y-4">
-        {orders.map((o) => {
-          const idx = steps.indexOf(o.status);
-          return (
-            <article key={o.id} className="rounded-2xl border bg-card p-5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">#{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleString()}</p>
-                  <p className="text-xl font-bold">{peso(o.total)}</p>
-                </div>
-                <StatusBadge status={o.status} />
-              </div>
-              {o.status !== "cancelled" && (
-                <div className="mt-4 grid grid-cols-5 gap-1">
-                  {steps.map((s, i) => (
-                    <div key={s} className="text-center">
-                      <div className={`h-1.5 rounded-full ${i <= idx ? "bg-primary" : "bg-muted"}`} />
-                      <p className="mt-1 text-[10px] capitalize text-muted-foreground">{s.replace("_", " ")}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <ul className="mt-4 text-sm">
-                {o.order_items.map((it) => <li key={it.id}>{it.quantity}× {it.name}</li>)}
-              </ul>
-              <p className="mt-2 text-sm text-muted-foreground">Cash on delivery · {o.address}</p>
-              {o.status === "pending" && <Button variant="outline" size="sm" className="mt-3" onClick={() => cancel(o.id)}>Cancel order</Button>}
-            </article>
+  useEffect(() => {
+    fetchCustomerOrders();
+
+    // Subscribe to real-time status updates from rider
+    const channel = supabase
+      .channel('public:orders')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          setOrders((prevOrders) =>
+            prevOrders.map((o) => (o.id === payload.new.id ? { ...o, ...payload.new } : o))
           );
-        })}
-      </div>
-    </main>
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#FFF8F0] p-4 max-w-md mx-auto font-sans">
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">My Orders</h1>
+
+      {loading ? (
+        <p className="text-sm text-gray-500">Loading your orders...</p>
+      ) : orders.length === 0 ? (
+        <p className="text-sm text-gray-500">No active orders placed.</p>
+      ) : (
+        orders.map((order) => (
+          <div key={order.id} className="bg-white p-4 rounded-2xl shadow-sm border mb-4">
+            <div className="flex justify-between items-center border-b pb-2 mb-2">
+              <span className="text-xs text-gray-500">
+                Order #{order.id.substring(0, 8)}
+              </span>
+              <span
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  order.status === 'picked_up'
+                    ? 'bg-amber-100 text-amber-800'
+                    : order.status === 'delivered'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {order.status === 'picked_up'
+                  ? 'On the way'
+                  : order.status === 'delivered'
+                  ? 'Delivered'
+                  : 'Preparing'}
+              </span>
+            </div>
+
+            <div className="text-sm text-gray-800 mb-2">
+              <p className="font-medium">{order.items}</p>
+              <p className="font-bold mt-1">Total: ₱{order.total_amount}</p>
+            </div>
+
+            {/* Rider Information Section (Visible when order is picked up or delivered) */}
+            {order.status !== 'pending' && order.rider_name && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-xl">
+                <p className="text-xs font-semibold text-red-800 uppercase tracking-wide">
+                  🛵 Your Rider
+                </p>
+                <div className="flex items-center justify-between mt-1">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{order.rider_name}</p>
+                    {order.rider_phone && (
+                      <p className="text-xs text-gray-600">Contact: {order.rider_phone}</p>
+                    )}
+                  </div>
+                  {order.rider_phone && (
+                    <a
+                      href={`tel:${order.rider_phone}`}
+                      className="bg-[#E53935] text-white px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1 shadow-sm hover:bg-red-700"
+                    >
+                      📞 Call Rider
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
   );
 }
