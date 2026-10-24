@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart, peso } from "@/lib/cart";
 import { Button } from "@/components/ui/button";
+import { Clock } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,8 +43,10 @@ function Index() {
                                       }
                                             `}</style>
       <section className="grid items-center gap-8 py-10 md:grid-cols-2 md:py-16">
-        <div>
-          <span className="inline-block rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">Delivered in 30 mins</span>
+        <div className="inline-flex items-center gap-2 rounded-full border border-amber-800/40 bg-amber-950/60 px-4 py-1.5 text-sm font-medium text-amber-500">
+          <Clock className="h-4 w-4" />
+            <span>Fast Delivery • Hot in 30 Mins</span>
+            </div>
           <h1 className="mt-4 text-5xl font-extrabold leading-[0.95] md:text-7xl">
               Food x Coffee,<br /><span className="text-primary">hatid sa'yo!</span>
           </h1>
