@@ -64,7 +64,12 @@ function Index() {
           </div>
         </div>
         <div className="relative">
-          <img src="/images/sisig.jpg" alt="Sizzling sisig" className="rounded-2xl object-cover shadow-2xl w-full aspect-video" />
+          {/* Restored original widescreen aspect-video and object-cover sizing */}
+          <img 
+            src="/images/sisig.jpg" 
+            alt="Sizzling sisig" 
+            className="rounded-2xl object-cover shadow-2xl w-full aspect-video" 
+          />
         </div>
       </section>
 
