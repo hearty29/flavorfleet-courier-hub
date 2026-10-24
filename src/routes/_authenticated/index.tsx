@@ -35,6 +35,12 @@ function Index() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20">
+      {/* Add the style tag here */}
+            <style>{`
+                    #lovable-badge {
+                              display: none !important;
+                                      }
+                                            `}</style>
       <section className="grid items-center gap-8 py-10 md:grid-cols-2 md:py-16">
         <div>
           <span className="inline-block rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">Delivered in ~30 mins</span>
