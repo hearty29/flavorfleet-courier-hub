@@ -50,7 +50,7 @@ function Index() {
             Food & Coffee,<br /><span className="text-primary">hatid sa'yo!</span>
           </h1>
           <p className="mt-4 max-w-md text-lg text-muted-foreground">
-            Order adobo, sisig, and your favorite local comfort food right to your doorstep.
+            Your daily neighborhood pause. Savor rich espressos, comforting eats, and warm conversations in a place that feels like home.""
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button size="lg" asChild>
