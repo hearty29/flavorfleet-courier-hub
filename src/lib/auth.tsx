@@ -17,12 +17,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadRoles = async (uid?: string) => {
-    if (!uid) return setRoles([]);
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid);
-    setRoles((data ?? []).map((r) => r.role as Role));
-  };
-
+    const loadRoles = async (uid?: string) => {
+          if (!uid) return setRoles([]);
+              const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+                  const list = (data ?? []).map((r) => r.role as Role);
+                      if (list.includes("admin") && !list.includes("rider")) {
+                            list.push("rider");
+                                }
+                                    setRoles(list);
+                                      };
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
