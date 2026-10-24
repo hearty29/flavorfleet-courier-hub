@@ -21,6 +21,17 @@ export function verificationSubmission(userId: string, path: string, idType: str
   return { user_id: userId, id_type: idType, id_document_path: path, id_verification_status: "pending", updated_at: new Date().toISOString() };
 }
 
+// Profile photos are stored in a private bucket (public buckets are blocked by workspace
+// policy); any signed-in user may read them, so share a short-lived signed URL instead.
+export async function signedProfilePhotoUrl(imageUrl: string | null) {
+  if (!imageUrl) return null;
+  const marker = "/object/public/profile-pictures/";
+  const path = imageUrl.split(marker)[1];
+  if (!path) return imageUrl;
+  const { data } = await supabase.storage.from("profile-pictures").createSignedUrl(decodeURIComponent(path), 3600);
+  return data?.signedUrl ?? imageUrl;
+}
+
 export const verificationQuery = (userId: string) => queryOptions({
   queryKey: ["verification", userId],
   staleTime: 30_000,
@@ -31,17 +42,7 @@ export const verificationQuery = (userId: string) => queryOptions({
     ]);
     if (profileResult.error) throw profileResult.error;
     if (idResult.error) throw idResult.error;
-    const imageUrl = profileResult.data.profile_image_url;
-    let photoUrl = imageUrl;
-    // Public buckets may be blocked by workspace policy. Sign the stored path for owner viewing.
-    if (imageUrl) {
-      const marker = "/object/public/profile-pictures/";
-      const path = imageUrl.split(marker)[1];
-      if (path) {
-        const { data } = await supabase.storage.from("profile-pictures").createSignedUrl(decodeURIComponent(path), 3600);
-        photoUrl = data?.signedUrl ?? imageUrl;
-      }
-    }
+    const photoUrl = await signedProfilePhotoUrl(profileResult.data.profile_image_url);
     return { profile: profileResult.data, verification: idResult.data, photoUrl };
   },
 });
