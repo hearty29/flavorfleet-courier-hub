@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -109,7 +109,52 @@ const TIME_SLOTS = [
 function PickleballPage() {
   const [activeTab, setActiveTab] = useState<Tab>("status");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isUserAdminRole, setIsUserAdminRole] = useState<boolean>(false);
   const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
+
+  // Check current user role from Supabase Auth / User Metadata / DB
+  useEffect(() => {
+    async function checkAdminStatus() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setIsUserAdminRole(false);
+        setIsAdmin(false);
+        return;
+      }
+
+      const user = session.user;
+      // Check user metadata or query user_roles table
+      const role = user.app_metadata?.role || user.user_metadata?.role;
+      if (role === "admin") {
+        setIsUserAdminRole(true);
+      } else {
+        // Fallback: Check user_roles table if present in your database schema
+        const { data: userRoles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (userRoles) {
+          setIsUserAdminRole(true);
+        } else {
+          setIsUserAdminRole(false);
+          setIsAdmin(false);
+        }
+      }
+    }
+
+    checkAdminStatus();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      checkAdminStatus();
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Booking form state
   const [selectedCourt, setSelectedCourt] = useState(courts[0]!.id);
@@ -169,7 +214,7 @@ function PickleballPage() {
 
   // Admin action: Cancel/Free up slot
   const handleCancelBookingSlot = async (slotToCancel: string) => {
-    if (!isAdmin) return;
+    if (!isAdmin || !isUserAdminRole) return;
     try {
       const { error } = await supabase.rpc("cancel_court_booking", {
         _court: selectedCourt,
@@ -178,7 +223,6 @@ function PickleballPage() {
       });
 
       if (error) {
-        // Fallback for fallback/direct deletion if RPC is not defined
         const { error: deleteErr } = await supabase
           .from("court_bookings")
           .delete()
@@ -197,6 +241,7 @@ function PickleballPage() {
 
   // Admin action: Toggle court maintenance status
   const toggleCourtStatus = (courtId: string) => {
+    if (!isUserAdminRole) return;
     setCourts((prev) =>
       prev.map((c) => {
         if (c.id === courtId) {
@@ -226,22 +271,24 @@ function PickleballPage() {
             </p>
           </div>
 
-          {/* Admin Toggle Switch */}
-          <div className="rounded-2xl border bg-background/80 p-3 shadow-sm backdrop-blur">
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground">
-              <Shield className={`h-4 w-4 ${isAdmin ? "text-amber-500" : "text-muted-foreground"}`} />
-              <span>Admin Mode</span>
-              <input
-                type="checkbox"
-                checked={isAdmin}
-                onChange={(e) => {
-                  setIsAdmin(e.target.checked);
-                  toast(e.target.checked ? "Admin Controls Enabled" : "Switched to Public View");
-                }}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-            </label>
-          </div>
+          {/* Admin Toggle Switch - Hidden for non-admin users */}
+          {isUserAdminRole && (
+            <div className="rounded-2xl border bg-background/80 p-3 shadow-sm backdrop-blur">
+              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground">
+                <Shield className={`h-4 w-4 ${isAdmin ? "text-amber-500" : "text-muted-foreground"}`} />
+                <span>Admin Mode</span>
+                <input
+                  type="checkbox"
+                  checked={isAdmin}
+                  onChange={(e) => {
+                    setIsAdmin(e.target.checked);
+                    toast(e.target.checked ? "Admin Controls Enabled" : "Switched to Public View");
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+              </label>
+            </div>
+          )}
         </div>
 
         {/* Sub-Navigation Pills */}
@@ -349,7 +396,7 @@ function PickleballPage() {
                     Book {court.name.split("—")[0]}
                   </Button>
 
-                  {isAdmin && (
+                  {isUserAdminRole && isAdmin && (
                     <Button
                       variant="secondary"
                       size="sm"
@@ -466,7 +513,7 @@ function PickleballPage() {
                 <div className="rounded-2xl border bg-card p-6 shadow-sm">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-bold">2. Date & Time</h3>
-                    {isAdmin && (
+                    {isUserAdminRole && isAdmin && (
                       <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
                         Admin Controls Active
                       </span>
@@ -497,7 +544,7 @@ function PickleballPage() {
                           <div key={slot} className="relative group">
                             <button
                               type="button"
-                              disabled={taken && !isAdmin}
+                              disabled={taken && (!isAdmin || !isUserAdminRole)}
                               onClick={() => {
                                 if (!taken) setSelectedSlot(slot);
                               }}
@@ -516,7 +563,7 @@ function PickleballPage() {
                             </button>
 
                             {/* Admin Remove/Free Up Button */}
-                            {isAdmin && taken && (
+                            {isUserAdminRole && isAdmin && taken && (
                               <button
                                 type="button"
                                 title="Admin: Cancel reservation and make available"
