@@ -1,61 +1,52 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { ShoppingBag, LogOut, Shield, Bike, Receipt, Trophy } from "lucide-react";
-import { useAuth } from "@/lib/auth";
-import { useCart } from "@/lib/cart";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { Link } from "@tanstack/react-router";
+import { ShoppingBag, Trophy, Shield, Bike, Receipt } from "lucide-react";
 
 export function SiteHeader() {
-  const { session, roles } = useAuth();
-  const { count } = useCart();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-
-  const signOut = async () => {
-    await qc.cancelQueries();
-    qc.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  };
-
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4">
-        <Link to="/" className="mr-auto font-display text-2xl font-extrabold text-primary">
-          Roadside<span className="text-foreground"> Paddles</span>
+    <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        {/* Brand Logo / Title */}
+        <Link to="/food" className="flex items-center gap-2">
+          <span className="text-lg font-extrabold text-orange-700 tracking-tight">
+            Roadside <span className="text-slate-800">Paddles</span>
+          </span>
         </Link>
 
-        {/* Pickleball Tab */}
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/pickleball">
-            <Trophy className="h-4 w-4" />
-            <span className="ml-1.5 font-medium">Pickleball</span>
+        {/* Navigation Icons */}
+        <div className="flex items-center gap-3 sm:gap-4 text-slate-600">
+          <Link
+            to="/pickleball"
+            className="flex items-center gap-1 text-xs font-semibold hover:text-orange-600 transition"
+          >
+            <Trophy className="w-4 h-4" />
+            <span className="hidden sm:inline">Pickleball</span>
           </Link>
-        </Button>
 
-        {roles.includes("admin") && (
-          <Button asChild variant="ghost" size="sm"><Link to="/admin"><Shield /> <span className="hidden sm:inline">Admin</span></Link></Button>
-        )}
-        {roles.includes("rider") && (
-          <Button asChild variant="ghost" size="sm"><Link to="/rider"><Bike /> <span className="hidden sm:inline">Rider</span></Link></Button>
-        )}
-        {session && (
-          <Button asChild variant="ghost" size="sm"><Link to="/orders"><Receipt /> <span className="hidden sm:inline">Orders</span></Link></Button>
-        )}
-        <Button asChild variant="outline" size="sm" className="relative">
-          <Link to="/checkout">
-            <ShoppingBag />
-            {count > 0 && (
-              <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-xs text-primary-foreground">{count}</span>
-            )}
+          <Link
+            to="/rider"
+            className="flex items-center gap-1 text-xs font-semibold hover:text-orange-600 transition"
+          >
+            <Bike className="w-4 h-4" />
+            <span className="hidden sm:inline">Rider</span>
           </Link>
-        </Button>
-        {session ? (
-          <Button variant="ghost" size="sm" onClick={signOut} aria-label="Sign out"><LogOut /></Button>
-        ) : (
-          <Button asChild size="sm"><Link to="/auth">Sign in</Link></Button>
-        )}
+
+          <Link
+            to="/orders"
+            className="flex items-center gap-1 text-xs font-semibold hover:text-orange-600 transition"
+          >
+            <Receipt className="w-4 h-4" />
+            <span className="hidden sm:inline">Orders</span>
+          </Link>
+
+          {/* FIXED CART ICON LINK (Points to /checkout instead of /cart) */}
+          <Link
+            to="/checkout"
+            className="relative p-2 bg-orange-50 text-orange-600 rounded-full hover:bg-orange-100 transition flex items-center justify-center"
+          >
+            <ShoppingBag className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
     </header>
   );
