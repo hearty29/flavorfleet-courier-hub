@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Utensils,
   ShoppingBag,
   Clock,
-  CheckCircle,
   Truck,
   Plus,
   Minus,
-  Upload,
   UserCheck,
-  CreditCard,
   ChefHat
 } from "lucide-react";
 
 // --- SUPABASE CLIENT SETUP ---
-const SUPABASE_URL = "https://nasfsyxtkryxkrxwftp.supabase.co"; // Your project URL
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; // Replace with your anon key
+const SUPABASE_URL = "https://nasfsyxtkryxkrxwftp.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; // Replace with your anon key if not using env
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- TYPES ---
@@ -44,6 +42,7 @@ interface CafeOrder {
   status: string;
   rider_name?: string;
   rider_phone?: string;
+  location?: string;
   created_at: string;
 }
 
@@ -87,14 +86,15 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 export default function FoodOrderingApp() {
+  const navigate = useNavigate();
   const [view, setView] = useState<"menu" | "dashboard">("menu");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerContact, setCustomerContact] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"counter" | "gcash">("counter");
+  const [paymentMethod, setPaymentMethod] = useState<"counter" | "gcash" | "cod">("cod");
+  const [location, setLocation] = useState("Tago");
   const [gcashRef, setGcashRef] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Dashboard & Rider States
@@ -155,7 +155,7 @@ export default function FoodOrderingApp() {
 
   const totalAmount = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Submit Order
+  // Submit Order & Navigate to /orders
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return alert("Your cart is empty!");
@@ -166,17 +166,15 @@ export default function FoodOrderingApp() {
 
     // Upload receipt to Supabase Storage if GCash is selected
     if (paymentMethod === "gcash" && receiptFile) {
-      setUploading(true);
       const fileExt = receiptFile.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("gcash-receipts")
         .upload(fileName, receiptFile);
 
-      if (error) {
-        alert("Receipt upload failed: " + error.message);
+      if (uploadError) {
+        alert("Receipt upload failed: " + uploadError.message);
         setLoading(false);
-        setUploading(false);
         return;
       }
 
@@ -184,7 +182,6 @@ export default function FoodOrderingApp() {
         .from("gcash-receipts")
         .getPublicUrl(fileName);
       receiptUrl = publicUrlData.publicUrl;
-      setUploading(false);
     }
 
     // Insert order into cafe_orders table
@@ -195,6 +192,7 @@ export default function FoodOrderingApp() {
         items: cart,
         total_amount: totalAmount,
         payment_method: paymentMethod,
+        location: location,
         gcash_ref: paymentMethod === "gcash" ? gcashRef : null,
         receipt_url: receiptUrl || null,
         status: "pending",
@@ -207,16 +205,17 @@ export default function FoodOrderingApp() {
     if (orderError) {
       alert("Error placing order: " + orderError.message);
     } else {
-      alert("Order placed successfully! We are preparing your food.");
       setCart([]);
       setCustomerName("");
       setCustomerContact("");
       setGcashRef("");
       setReceiptFile(null);
+      // Redirect successfully to active orders tracking route
+      navigate({ to: "/orders" });
     }
   };
 
-  // Accept Order & Assign Rider
+  // Accept Order & Assign Rider Name
   const handleAcceptOrder = async (orderId: string) => {
     if (!activeRiderName.trim()) {
       return alert("Please enter your Rider Name at the top before accepting orders!");
@@ -225,7 +224,7 @@ export default function FoodOrderingApp() {
     const { error } = await supabase
       .from("cafe_orders")
       .update({
-        status: "accepted",
+        status: "out_for_delivery",
         rider_name: activeRiderName
       })
       .eq("id", orderId);
@@ -381,12 +380,25 @@ export default function FoodOrderingApp() {
               </div>
 
               <div>
+                <label className="text-xs font-semibold text-slate-600">Delivery Location</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Tago"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-full text-xs p-2 border rounded-lg mt-1 focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div>
                 <label className="text-xs font-semibold text-slate-600">Payment Option</label>
                 <select
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as "counter" | "gcash")}
+                  onChange={(e) => setPaymentMethod(e.target.value as "counter" | "gcash" | "cod")}
                   className="w-full text-xs p-2 border rounded-lg mt-1 focus:ring-1 focus:ring-emerald-500 outline-none"
                 >
+                  <option value="cod">Cash on delivery</option>
                   <option value="counter">Pay at Counter</option>
                   <option value="gcash">GCash Online</option>
                 </select>
@@ -434,7 +446,7 @@ export default function FoodOrderingApp() {
       {/* VIEW 2: RIDER & ADMIN DASHBOARD */}
       {view === "dashboard" && (
         <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-          {/* RIDER LOGIN BAR */}
+          {/* RIDER INPUT BAR */}
           <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-emerald-700" />
@@ -479,21 +491,19 @@ export default function FoodOrderingApp() {
                           className={`text-xs px-2.5 py-1 rounded-full font-semibold capitalize ${
                             order.status === "pending"
                               ? "bg-amber-100 text-amber-800"
-                              : order.status === "accepted"
-                              ? "bg-blue-100 text-blue-800"
                               : order.status === "out_for_delivery"
                               ? "bg-purple-100 text-purple-800"
                               : "bg-emerald-100 text-emerald-800"
                           }`}
                         >
-                          {order.status.replace(/_/g, " ")}
+                          {order.status === "out_for_delivery" ? "Picked Up" : order.status.replace(/_/g, " ")}
                         </span>
                       </div>
 
                       {/* ASSIGNED RIDER DISPLAY */}
                       {order.rider_name ? (
                         <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 p-1.5 rounded border border-emerald-100 flex items-center gap-1">
-                          <Truck className="w-3.5 h-3.5" /> Rider: {order.rider_name}
+                          <Truck className="w-3.5 h-3.5" /> Assigned Rider: {order.rider_name}
                         </p>
                       ) : (
                         <p className="text-xs font-medium text-amber-600 bg-amber-50 p-1.5 rounded border border-amber-100">
@@ -517,9 +527,9 @@ export default function FoodOrderingApp() {
                         </div>
                       </div>
 
-                      {/* PAYMENT DETAILS */}
+                      {/* PAYMENT & LOCATION DETAILS */}
                       <div className="text-xs text-slate-500 flex items-center justify-between pt-1">
-                        <span>Payment: {order.payment_method.toUpperCase()}</span>
+                        <span>{order.payment_method === "cod" ? "Cash on delivery" : order.payment_method} · {order.location || "Tago"}</span>
                         {order.receipt_url && (
                           <button
                             onClick={() => setSelectedReceipt(order.receipt_url || null)}
@@ -538,16 +548,7 @@ export default function FoodOrderingApp() {
                           onClick={() => handleAcceptOrder(order.id)}
                           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded-lg transition"
                         >
-                          Accept Order
-                        </button>
-                      )}
-
-                      {order.status === "accepted" && (
-                        <button
-                          onClick={() => handleUpdateStatus(order.id, "out_for_delivery")}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 rounded-lg transition"
-                        >
-                          Mark Out for Delivery
+                          Accept & Pick Up Order
                         </button>
                       )}
 
