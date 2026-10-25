@@ -11,9 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as ApplyRiderRouteImport } from './routes/apply-rider'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as PickleballRouteImport } from './routes/pickleball'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedApplyRiderRouteImport } from './routes/_authenticated/apply-rider'
 import { Route as AuthenticatedCheckoutRouteImport } from './routes/_authenticated/checkout'
 import { Route as AuthenticatedOrdersRouteImport } from './routes/_authenticated/orders'
 import { Route as AuthenticatedRiderRouteImport } from './routes/_authenticated/rider'
@@ -28,19 +29,24 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApplyRiderRoute = ApplyRiderRouteImport.update({
-  id: '/apply-rider',
-  path: '/apply-rider',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PickleballRoute = PickleballRouteImport.update({
+  id: '/pickleball',
+  path: '/pickleball',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedApplyRiderRoute = AuthenticatedApplyRiderRouteImport.update({
+  id: '/apply-rider',
+  path: '/apply-rider',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCheckoutRoute = AuthenticatedCheckoutRouteImport.update({
@@ -67,9 +73,10 @@ const AuthenticatedVerificationRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/apply-rider': typeof ApplyRiderRoute
   '/auth': typeof AuthRoute
+  '/pickleball': typeof PickleballRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/apply-rider': typeof AuthenticatedApplyRiderRoute
   '/checkout': typeof AuthenticatedCheckoutRoute
   '/orders': typeof AuthenticatedOrdersRoute
   '/rider': typeof AuthenticatedRiderRoute
@@ -77,9 +84,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/apply-rider': typeof ApplyRiderRoute
   '/auth': typeof AuthRoute
+  '/pickleball': typeof PickleballRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/apply-rider': typeof AuthenticatedApplyRiderRoute
   '/checkout': typeof AuthenticatedCheckoutRoute
   '/orders': typeof AuthenticatedOrdersRoute
   '/rider': typeof AuthenticatedRiderRoute
@@ -89,9 +97,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/apply-rider': typeof ApplyRiderRoute
   '/auth': typeof AuthRoute
+  '/pickleball': typeof PickleballRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/apply-rider': typeof AuthenticatedApplyRiderRoute
   '/_authenticated/checkout': typeof AuthenticatedCheckoutRoute
   '/_authenticated/orders': typeof AuthenticatedOrdersRoute
   '/_authenticated/rider': typeof AuthenticatedRiderRoute
@@ -101,9 +110,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/apply-rider'
     | '/auth'
+    | '/pickleball'
     | '/admin'
+    | '/apply-rider'
     | '/checkout'
     | '/orders'
     | '/rider'
@@ -111,9 +121,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/apply-rider'
     | '/auth'
+    | '/pickleball'
     | '/admin'
+    | '/apply-rider'
     | '/checkout'
     | '/orders'
     | '/rider'
@@ -122,9 +133,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
-    | '/apply-rider'
     | '/auth'
+    | '/pickleball'
     | '/_authenticated/admin'
+    | '/_authenticated/apply-rider'
     | '/_authenticated/checkout'
     | '/_authenticated/orders'
     | '/_authenticated/rider'
@@ -134,8 +146,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  ApplyRiderRoute: typeof ApplyRiderRoute
   AuthRoute: typeof AuthRoute
+  PickleballRoute: typeof PickleballRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -154,13 +166,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/apply-rider': {
-      id: '/apply-rider'
-      path: '/apply-rider'
-      fullPath: '/apply-rider'
-      preLoaderRoute: typeof ApplyRiderRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -168,11 +173,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pickleball': {
+      id: '/pickleball'
+      path: '/pickleball'
+      fullPath: '/pickleball'
+      preLoaderRoute: typeof PickleballRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/apply-rider': {
+      id: '/_authenticated/apply-rider'
+      path: '/apply-rider'
+      fullPath: '/apply-rider'
+      preLoaderRoute: typeof AuthenticatedApplyRiderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/checkout': {
@@ -208,6 +227,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedApplyRiderRoute: typeof AuthenticatedApplyRiderRoute
   AuthenticatedCheckoutRoute: typeof AuthenticatedCheckoutRoute
   AuthenticatedOrdersRoute: typeof AuthenticatedOrdersRoute
   AuthenticatedRiderRoute: typeof AuthenticatedRiderRoute
@@ -216,6 +236,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedApplyRiderRoute: AuthenticatedApplyRiderRoute,
   AuthenticatedCheckoutRoute: AuthenticatedCheckoutRoute,
   AuthenticatedOrdersRoute: AuthenticatedOrdersRoute,
   AuthenticatedRiderRoute: AuthenticatedRiderRoute,
@@ -228,8 +249,8 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  ApplyRiderRoute: ApplyRiderRoute,
   AuthRoute: AuthRoute,
+  PickleballRoute: PickleballRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
