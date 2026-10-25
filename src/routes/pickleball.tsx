@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { 
   CalendarDays, 
   Clock, 
@@ -10,8 +11,11 @@ import {
   AlertCircle, 
   ShieldCheck, 
   Sparkles, 
-  Phone, 
-  Users 
+  Users,
+  Video,
+  Play,
+  XCircle,
+  Tv
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,32 +23,29 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/pickleball")({
   head: () => ({
     meta: [
-      { title: "Pickleball Courts — Roadside Paddles" },
-      { name: "description", content: "Check live court status and reserve your pickleball court at Roadside Paddles." },
-      { property: "og:title", content: "Pickleball Courts — Roadside Paddles" },
-      { property: "og:description", content: "Check live court status and reserve your pickleball court at Roadside Paddles." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { title: "Pickleball Courts & Live Stream — Roadside Paddles" },
+      { name: "description", content: "Watch live court streams, check game status, and reserve pickleball courts." },
     ],
   }),
   component: PickleballPage,
 });
 
-type Tab = "status" | "book";
+type Tab = "status" | "book" | "live";
 
-interface Court {
+interface Booking {
   id: string;
-  name: string;
-  type: string;
-  surface: string;
-  rateDay: number;
-  rateNight: number;
-  status: "available" | "in_use" | "maintenance";
-  currentSessionUntil?: string;
-  nextSlot: string;
+  court_id: string;
+  booking_date: string;
+  time_slot: string;
+  customer_name: string;
+  customer_contact: string;
+  status: "pending_arrival" | "active" | "completed" | "cancelled";
+  timer_started_at?: string;
+  duration_minutes: number;
+  total_amount: number;
 }
 
-const COURTS: Court[] = [
+const COURTS = [
   {
     id: "court-1",
     name: "Court 1 — Pro Arena",
@@ -52,8 +53,7 @@ const COURTS: Court[] = [
     surface: "Cushioned Acrylic 8-layer",
     rateDay: 350,
     rateNight: 500,
-    status: "available",
-    nextSlot: "Available now",
+    streamUrl: "https://www.youtube.com/embed/5qap5aO4i9A?autoplay=1&mute=1", // Replace with HLS/YouTube Embed URL
   },
   {
     id: "court-2",
@@ -62,9 +62,7 @@ const COURTS: Court[] = [
     surface: "Premium Hardcourt",
     rateDay: 300,
     rateNight: 450,
-    status: "in_use",
-    currentSessionUntil: "5:00 PM",
-    nextSlot: "Next available: 5:00 PM",
+    streamUrl: "https://www.youtube.com/embed/5qap5aO4i9A?autoplay=1&mute=1",
   },
   {
     id: "court-3",
@@ -73,18 +71,7 @@ const COURTS: Court[] = [
     surface: "Textured Hardcourt",
     rateDay: 250,
     rateNight: 400,
-    status: "available",
-    nextSlot: "Available now",
-  },
-  {
-    id: "court-4",
-    name: "Court 4 — Kitchen Corner",
-    type: "Covered Standard Court",
-    surface: "Premium Hardcourt",
-    rateDay: 300,
-    rateNight: 450,
-    status: "available",
-    nextSlot: "Available now",
+    streamUrl: "https://www.youtube.com/embed/5qap5aO4i9A?autoplay=1&mute=1",
   },
 ];
 
@@ -104,78 +91,166 @@ const TIME_SLOTS = [
   "09:00 PM - 10:00 PM",
 ];
 
-function PickleballPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("status");
+// Active Game Countdown Component
+function LiveTimer({ startedAt, durationMinutes }: { startedAt: string; durationMinutes: number }) {
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  // Booking form state
+  useEffect(() => {
+    const calculateTime = () => {
+      const startMs = new Date(startedAt).getTime();
+      const endMs = startMs + durationMinutes * 60 * 1000;
+      const nowMs = Date.now();
+      const diff = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+      setTimeLeft(diff);
+    };
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    return () => clearInterval(interval);
+  }, [startedAt, durationMinutes]);
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  if (timeLeft <= 0) {
+    return <span className="text-destructive font-bold">SESSION FINISHED</span>;
+  }
+
+  return (
+    <span className="font-mono text-lg font-extrabold text-amber-500 animate-pulse">
+      {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")} remaining
+    </span>
+  );
+}
+
+function PickleballPage() {
+  const { roles } = useAuth();
+  const isAdmin = roles.includes("admin");
+  const [activeTab, setActiveTab] = useState<Tab>("status");
+  const [selectedStreamCourt, setSelectedStreamCourt] = useState(COURTS[0]!.id);
+
+  // Form states
   const [selectedCourt, setSelectedCourt] = useState(COURTS[0]!.id);
-  const [bookingDate, setBookingDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0] ?? "";
-  });
+  const [bookingDate, setBookingDate] = useState<string>(() => new Date().toISOString().split("T")[0] ?? "");
   const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[4]!);
   const [playerName, setPlayerName] = useState("");
   const [playerContact, setPlayerContact] = useState("");
   const [paddlesNeeded, setPaddlesNeeded] = useState(0);
   const [ballsNeeded, setBallsNeeded] = useState(false);
-  const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
+  const [submittedBooking, setSubmittedBooking] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // Fetch today's bookings with Realtime updates
+  const { data: bookings = [], refetch } = useQuery<Booking[]>({
+    queryKey: ["court-bookings", bookingDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("court_bookings")
+        .select("*")
+        .eq("booking_date", bookingDate);
+      if (error) throw error;
+      return (data ?? []) as Booking[];
+    },
+  });
+
+  // Subscribe to realtime database updates for live timers & statuses
+  useEffect(() => {
+    const channel = supabase
+      .channel("court-booking-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "court_bookings" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["court-bookings"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const courtObj = COURTS.find((c) => c.id === selectedCourt) || COURTS[0]!;
   const isNight = selectedSlot.includes("PM") && parseInt(selectedSlot) >= 6;
   const courtFee = isNight ? courtObj.rateNight : courtObj.rateDay;
-  const paddleFee = paddlesNeeded * 50;
-  const ballFee = ballsNeeded ? 120 : 0;
-  const totalAmount = courtFee + paddleFee + ballFee;
+  const totalAmount = courtFee + paddlesNeeded * 50 + (ballsNeeded ? 120 : 0);
 
-  const queryClient = useQueryClient();
-  const { data: bookedSlots = [] } = useQuery({
-    queryKey: ["booked-slots", selectedCourt, bookingDate],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_booked_slots", { _court: selectedCourt, _date: bookingDate });
-      if (error) throw error;
-      return (data ?? []) as string[];
-    },
-  });
-  const [saving, setSaving] = useState(false);
+  // Admin Actions
+  const handleStartTimer = async (bookingId: string) => {
+    const { error } = await supabase
+      .from("court_bookings")
+      .update({
+        status: "active",
+        timer_started_at: new Date().toISOString(),
+      })
+      .eq("id", bookingId);
+
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Game started & timer initialized!");
+      refetch();
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm("Are you sure you want to cancel/remove this booking?")) return;
+    const { error } = await supabase
+      .from("court_bookings")
+      .update({ status: "cancelled" })
+      .eq("id", bookingId);
+
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Booking cancelled.");
+      refetch();
+    }
+  };
 
   const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!playerName.trim() || !playerContact.trim()) {
-      toast.error("Please enter your name and phone number");
-      return;
-    }
-    if (bookedSlots.includes(selectedSlot)) {
-      toast.error("That time slot is not available. Please pick a green slot.");
+      toast.error("Please enter your name and contact number");
       return;
     }
     setSaving(true);
-    const { error } = await supabase.rpc("book_court", {
-      _court: selectedCourt, _date: bookingDate, _slot: selectedSlot,
-      _name: playerName, _contact: playerContact, _paddles: paddlesNeeded, _balls: ballsNeeded, _total: totalAmount,
-    });
+    const { error } = await supabase.from("court_bookings").insert([
+      {
+        court_id: selectedCourt,
+        booking_date: bookingDate,
+        time_slot: selectedSlot,
+        customer_name: playerName,
+        customer_contact: playerContact,
+        status: "pending_arrival",
+        total_amount: totalAmount,
+        duration_minutes: 60,
+      },
+    ]);
     setSaving(false);
-    queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
     if (error) {
       toast.error(error.message);
-      return;
+    } else {
+      setSubmittedBooking(true);
+      toast.success("Court reserved successfully!");
+      refetch();
     }
-    setSubmittedBooking(true);
-    toast.success(`Court reserved! See you on ${bookingDate} at ${selectedSlot}.`);
   };
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 pb-20">
-      {/* Banner */}
+      {/* Top Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/15 via-primary/5 to-muted p-6 md:p-10">
         <div className="max-w-2xl">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
             <Sparkles className="h-3.5 w-3.5" /> Roadside Courts & Lounge
           </span>
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight md:text-5xl">
-            Pickleball Hub
+            Pickleball Hub & Live Stream
           </h1>
           <p className="mt-2 text-base text-muted-foreground md:text-lg">
-            High-grade tournament courts, premium lighting, and refreshing coffee right by the sideline.
+            Check live court feeds, view session timers, and reserve courts in real time.
           </p>
         </div>
 
@@ -195,6 +270,18 @@ function PickleballPage() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab("live")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+              activeTab === "live"
+                ? "bg-primary text-primary-foreground shadow"
+                : "bg-background/80 text-foreground hover:bg-background"
+            }`}
+          >
+            <Tv className="h-4 w-4" />
+            Live Streams
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab("book")}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
               activeTab === "book"
@@ -203,164 +290,204 @@ function PickleballPage() {
             }`}
           >
             <CalendarDays className="h-4 w-4" />
-            Book a Court
+            Book Court
           </button>
         </div>
       </div>
 
-      {/* SUB-VIEW 1: COURT STATUS */}
+      {/* SUB-VIEW 1: COURT STATUS & ACTIVE TIMERS */}
       {activeTab === "status" && (
         <section className="mt-8 space-y-6">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-2xl font-bold">Live Court Availability</h2>
-              <p className="text-sm text-muted-foreground">
-                Operating Hours: 6:00 AM – 10:00 PM Daily
-              </p>
+              <h2 className="text-2xl font-bold">Live Court Overview</h2>
+              <p className="text-sm text-muted-foreground">Real-time occupancy & active session countdowns</p>
             </div>
-            <Button
-              onClick={() => setActiveTab("book")}
-              className="mt-2 sm:mt-0"
-            >
-              Reserve a Slot
-            </Button>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {COURTS.map((court) => (
-              <div
-                key={court.id}
-                className="flex flex-col justify-between rounded-2xl border bg-card p-6 shadow-sm transition hover:shadow-md"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-lg">{court.name}</h3>
-                    {court.status === "available" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Available
-                      </span>
-                    ) : court.status === "in_use" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                        <Clock className="h-3.5 w-3.5" /> In Play ({court.currentSessionUntil})
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
-                        <AlertCircle className="h-3.5 w-3.5" /> Maintenance
-                      </span>
+            {COURTS.map((court) => {
+              const activeBooking = bookings.find(
+                (b) => b.court_id === court.id && b.status === "active"
+              );
+              const pendingBooking = bookings.find(
+                (b) => b.court_id === court.id && b.status === "pending_arrival"
+              );
+
+              return (
+                <div key={court.id} className="flex flex-col justify-between rounded-2xl border bg-card p-6 shadow-sm">
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-lg">{court.name}</h3>
+                      {activeBooking ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          <Clock className="h-3.5 w-3.5" /> In Play
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Available
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-1 text-xs text-muted-foreground">{court.type}</p>
+
+                    {/* Timer Box */}
+                    <div className="mt-4 rounded-xl bg-muted/60 p-4 text-center">
+                      {activeBooking && activeBooking.timer_started_at ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Current Match</p>
+                          <LiveTimer
+                            startedAt={activeBooking.timer_started_at}
+                            durationMinutes={activeBooking.duration_minutes}
+                          />
+                          <p className="text-xs font-medium text-foreground mt-1">
+                            Player: {activeBooking.customer_name}
+                          </p>
+                        </div>
+                      ) : pendingBooking ? (
+                        <div>
+                          <p className="text-xs text-amber-600 font-semibold">Reserved — Awaiting Customer</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Slot: {pendingBooking.time_slot} ({pendingBooking.customer_name})
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No active match playing right now</p>
+                      )}
+                    </div>
+
+                    {/* Admin Action Bar */}
+                    {isAdmin && (
+                      <div className="mt-4 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
+                        <p className="text-[11px] font-bold text-primary uppercase tracking-wider">Admin Controls</p>
+                        
+                        {pendingBooking && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-xs"
+                              onClick={() => handleStartTimer(pendingBooking.id)}
+                            >
+                              <Play className="h-3.5 w-3.5 mr-1" /> Start Timer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="text-xs"
+                              onClick={() => handleCancelBooking(pendingBooking.id)}
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+
+                        {activeBooking && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="w-full text-xs"
+                            onClick={() => handleCancelBooking(activeBooking.id)}
+                          >
+                            Finish / Cancel Session
+                          </Button>
+                        )}
+
+                        {!pendingBooking && !activeBooking && (
+                          <p className="text-[11px] text-muted-foreground">No pending customer for this court.</p>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  <p className="mt-1 text-xs text-muted-foreground">{court.type}</p>
-
-                  <div className="mt-4 space-y-2 rounded-xl bg-muted/50 p-3 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Surface:</span>
-                      <span className="font-medium">{court.surface}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Day Rate (6am-5pm):</span>
-                      <span className="font-semibold text-foreground">₱{court.rateDay}/hr</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Night Rate (5pm-10pm):</span>
-                      <span className="font-semibold text-foreground">₱{court.rateNight}/hr</span>
-                    </div>
-                  </div>
-
-                  <p className="mt-4 text-xs font-medium text-primary">
-                    {court.nextSlot}
-                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-6 w-full"
+                    onClick={() => {
+                      setSelectedStreamCourt(court.id);
+                      setActiveTab("live");
+                    }}
+                  >
+                    <Video className="mr-1.5 h-4 w-4" /> Watch Live Feed
+                  </Button>
                 </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
+      {/* SUB-VIEW 2: LIVE STREAMING FEEDS */}
+      {activeTab === "live" && (
+        <section className="mt-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Video className="h-6 w-6 text-red-500 animate-pulse" /> Live Court Stream
+              </h2>
+              <p className="text-sm text-muted-foreground">Watch real-time matches and court activity</p>
+            </div>
+
+            {/* Switch Stream Court */}
+            <div className="flex gap-2">
+              {COURTS.map((c) => (
                 <Button
-                  variant="outline"
-                  className="mt-6 w-full"
-                  onClick={() => {
-                    setSelectedCourt(court.id);
-                    setActiveTab("book");
-                  }}
+                  key={c.id}
+                  variant={selectedStreamCourt === c.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedStreamCourt(c.id)}
                 >
-                  Book {court.name.split("—")[0]}
+                  {c.name.split("—")[0]}
                 </Button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Court Amenities / Info banner */}
-          <div className="grid gap-4 rounded-2xl border bg-muted/30 p-5 sm:grid-cols-3 text-sm">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-semibold">Paddle & Ball Rentals</p>
-                <p className="text-xs text-muted-foreground">₱50/paddle, ₱120 fresh ball 3-pack</p>
-              </div>
+          {/* Stream Player Window */}
+          <div className="overflow-hidden rounded-2xl border bg-black shadow-lg">
+            <div className="relative aspect-video w-full">
+              <iframe
+                src={COURTS.find((c) => c.id === selectedStreamCourt)?.streamUrl}
+                className="h-full w-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title="Pickleball Live Stream"
+              />
             </div>
-            <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-primary" />
+            <div className="flex items-center justify-between p-4 bg-card text-foreground">
               <div>
-                <p className="font-semibold">Open Play & Clinics</p>
-                <p className="text-xs text-muted-foreground">Beginner-friendly community games</p>
+                <h3 className="font-bold">
+                  {COURTS.find((c) => c.id === selectedStreamCourt)?.name}
+                </h3>
+                <p className="text-xs text-muted-foreground">Camera Feed #1 — Main Sideline View</p>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <MapPin className="h-5 w-5 text-primary" />
-              <div>
-                <p className="font-semibold">Cafe by the Court</p>
-                <p className="text-xs text-muted-foreground">Enjoy your favorite drinks and snacks</p>
-              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-500">
+                <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" /> LIVE
+              </span>
             </div>
           </div>
         </section>
       )}
 
-      {/* SUB-VIEW 2: BOOK A COURT */}
+      {/* SUB-VIEW 3: BOOK COURT (Standard Booking Form) */}
       {activeTab === "book" && (
         <section className="mt-8">
           {submittedBooking ? (
             <div className="mx-auto max-w-lg rounded-2xl border bg-card p-8 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
-                <CheckCircle2 className="h-8 w-8" />
-              </div>
-              <h3 className="mt-4 text-2xl font-bold">Booking Submitted!</h3>
+              <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+              <h3 className="mt-4 text-2xl font-bold">Booking Reserved!</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                We reserved <strong className="text-foreground">{courtObj.name}</strong> for you on{" "}
-                <strong className="text-foreground">{bookingDate}</strong> ({selectedSlot}).
+                Please present your name at the front desk when arriving. The admin will start your game timer upon arrival.
               </p>
-
-              <div className="mt-6 rounded-xl bg-muted p-4 text-left text-xs space-y-1.5">
-                <div className="flex justify-between">
-                  <span>Player Name:</span>
-                  <span className="font-semibold">{playerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Contact:</span>
-                  <span className="font-semibold">{playerContact}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Due at Counter:</span>
-                  <span className="font-semibold text-primary text-sm">₱{totalAmount}</span>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-col gap-2">
-                <Button onClick={() => setSubmittedBooking(false)}>
-                  Book Another Slot
-                </Button>
-                <Button variant="outline" onClick={() => setActiveTab("status")}>
-                  Return to Court Status
-                </Button>
-              </div>
+              <Button className="mt-6 w-full" onClick={() => setActiveTab("status")}>
+                Return to Court Overview
+              </Button>
             </div>
           ) : (
-            <form
-              onSubmit={handleBookSubmit}
-              className="grid gap-8 lg:grid-cols-3"
-            >
-              {/* Left Column: Form Details */}
+            <form onSubmit={handleBookSubmit} className="grid gap-8 lg:grid-cols-3">
               <div className="space-y-6 lg:col-span-2">
-                {/* Step 1: Court Selection */}
-                <div className="rounded-2xl border bg-card p-6 shadow-sm">
-                  <h3 className="text-lg font-bold">1. Select Court</h3>
+                <div className="rounded-2xl border bg-card p-6">
+                  <h3 className="text-lg font-bold">Select Court & Slot</h3>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     {COURTS.map((c) => (
                       <button
@@ -368,189 +495,48 @@ function PickleballPage() {
                         key={c.id}
                         onClick={() => setSelectedCourt(c.id)}
                         className={`rounded-xl border p-4 text-left transition ${
-                          selectedCourt === c.id
-                            ? "border-primary bg-primary/10 shadow-sm"
-                            : "border-border hover:bg-muted/50"
+                          selectedCourt === c.id ? "border-primary bg-primary/10" : "hover:bg-muted/50"
                         }`}
                       >
                         <p className="font-bold text-sm">{c.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{c.type}</p>
-                        <p className="mt-2 text-xs font-semibold text-primary">
-                          From ₱{c.rateDay}/hr
-                        </p>
+                        <p className="text-xs text-muted-foreground">₱{c.rateDay}/hr</p>
                       </button>
                     ))}
                   </div>
-                </div>
 
-                {/* Step 2: Date & Slot */}
-                <div className="rounded-2xl border bg-card p-6 shadow-sm">
-                  <h3 className="text-lg font-bold">2. Date & Time</h3>
-                  <div className="mt-4">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Booking Date
-                    </label>
+                  <div className="mt-5">
+                    <label className="text-xs font-semibold">Player Name</label>
                     <input
-                      type="date"
-                      value={bookingDate}
-                      onChange={(e) => setBookingDate(e.target.value)}
-                      className="mt-1.5 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      type="text"
+                      required
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      className="mt-1 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                      placeholder="Enter your full name"
                     />
                   </div>
 
-                  <div className="mt-5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Time Slot (1 hour)
-                    </label>
-                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {TIME_SLOTS.map((slot) => {
-                        const taken = bookedSlots.includes(slot);
-                        const picked = selectedSlot === slot && !taken;
-                        return (
-                          <button
-                            type="button"
-                            key={slot}
-                            disabled={taken}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                              taken
-                                ? "cursor-not-allowed border-destructive/40 bg-destructive/10 text-destructive"
-                                : picked
-                                  ? "border-success bg-success text-primary-foreground font-semibold ring-2 ring-success/40"
-                                  : "border-success/40 bg-success/10 text-success hover:bg-success/20"
-                            }`}
-                          >
-                            <span className="block">{slot}</span>
-                            <span className="block text-[10px] font-bold uppercase">
-                              {taken ? "Not available" : "Available"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 3: Equipment Rentals & Details */}
-                <div className="rounded-2xl border bg-card p-6 shadow-sm">
-                  <h3 className="text-lg font-bold">3. Contact & Rentals</h3>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-xs font-semibold text-muted-foreground">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Juan Dela Cruz"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        className="mt-1.5 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-muted-foreground">
-                        Mobile Number *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="0917-123-4567"
-                        value={playerContact}
-                        onChange={(e) => setPlayerContact(e.target.value)}
-                        className="mt-1.5 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Add-ons */}
-                  <div className="mt-5 space-y-3 border-t pt-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <div>
-                        <p className="font-semibold">Paddle Rental (₱50 each)</p>
-                        <p className="text-xs text-muted-foreground">Quality USAPA-approved paddles</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPaddlesNeeded(Math.max(0, paddlesNeeded - 1))}
-                        >
-                          -
-                        </Button>
-                        <span className="w-6 text-center font-bold text-sm">{paddlesNeeded}</span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPaddlesNeeded(paddlesNeeded + 1)}
-                        >
-                          +
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <div>
-                        <p className="font-semibold">Pickleball Can (₱120)</p>
-                        <p className="text-xs text-muted-foreground">3x Franklin X-40 tournament balls</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={ballsNeeded}
-                        onChange={(e) => setBallsNeeded(e.target.checked)}
-                        className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                    </div>
+                  <div className="mt-4">
+                    <label className="text-xs font-semibold">Contact Number</label>
+                    <input
+                      type="tel"
+                      required
+                      value={playerContact}
+                      onChange={(e) => setPlayerContact(e.target.value)}
+                      className="mt-1 w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                      placeholder="0917-XXX-XXXX"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Order Summary */}
               <div className="h-fit rounded-2xl border bg-card p-6 shadow-sm">
-                <h3 className="font-bold text-lg">Booking Summary</h3>
-
-                <div className="mt-4 space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Court:</span>
-                    <span className="font-semibold">{courtObj.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Date:</span>
-                    <span className="font-semibold">{bookingDate}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Time Slot:</span>
-                    <span className="font-semibold">{selectedSlot}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Court Fee (1 hr):</span>
-                    <span className="font-semibold">₱{courtFee}</span>
-                  </div>
-                  {paddlesNeeded > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Paddle Rental ({paddlesNeeded}):</span>
-                      <span className="font-semibold">₱{paddleFee}</span>
-                    </div>
-                  )}
-                  {ballsNeeded && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Pickleball Can:</span>
-                      <span className="font-semibold">₱{ballFee}</span>
-                    </div>
-                  )}
-                  <div className="mt-2 flex justify-between border-t pt-3 text-base font-bold">
-                    <span>Total:</span>
-                    <span className="text-primary">₱{totalAmount}</span>
-                  </div>
+                <h3 className="font-bold text-lg">Summary</h3>
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex justify-between"><span>Court:</span><span className="font-semibold">{courtObj.name}</span></div>
+                  <div className="flex justify-between"><span>Total:</span><span className="font-semibold text-primary">₱{totalAmount}</span></div>
                 </div>
-
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Pay at the counter on arrival — cash or e-wallet.
-                </p>
-
-                <Button type="submit" className="mt-5 w-full" disabled={saving}>
+                <Button type="submit" className="mt-6 w-full" disabled={saving}>
                   Confirm Reservation
                 </Button>
               </div>
