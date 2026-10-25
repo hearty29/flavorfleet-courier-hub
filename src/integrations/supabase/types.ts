@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      court_bookings: {
+        Row: {
+          balls: boolean
+          booking_date: string
+          court_id: string
+          created_at: string
+          id: string
+          paddles: number
+          player_contact: string
+          player_name: string
+          time_slot: string
+          total: number
+        }
+        Insert: {
+          balls?: boolean
+          booking_date: string
+          court_id: string
+          created_at?: string
+          id?: string
+          paddles?: number
+          player_contact: string
+          player_name: string
+          time_slot: string
+          total?: number
+        }
+        Update: {
+          balls?: boolean
+          booking_date?: string
+          court_id?: string
+          created_at?: string
+          id?: string
+          paddles?: number
+          player_contact?: string
+          player_name?: string
+          time_slot?: string
+          total?: number
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           available: boolean
@@ -260,7 +299,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      book_court: {
+        Args: {
+          _balls: boolean
+          _contact: string
+          _court: string
+          _date: string
+          _name: string
+          _paddles: number
+          _slot: string
+          _total: number
+        }
+        Returns: string
+      }
       cancel_my_order: { Args: { _order: string }; Returns: undefined }
+      get_booked_slots: {
+        Args: { _court: string; _date: string }
+        Returns: string[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
