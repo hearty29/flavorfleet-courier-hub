@@ -13,7 +13,9 @@ import {
   Users,
   Shield,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  PlayCircle,
+  Wrench
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -112,7 +114,7 @@ function PickleballPage() {
   const [isUserAdminRole, setIsUserAdminRole] = useState<boolean>(false);
   const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
 
-  // Check current user role from Supabase Auth / User Metadata / DB
+  // Check current user role from Supabase Auth
   useEffect(() => {
     async function checkAdminStatus() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -123,12 +125,10 @@ function PickleballPage() {
       }
 
       const user = session.user;
-      // Check user metadata or query user_roles table
       const role = user.app_metadata?.role || user.user_metadata?.role;
       if (role === "admin") {
         setIsUserAdminRole(true);
       } else {
-        // Fallback: Check user_roles table if present in your database schema
         const { data: userRoles } = await supabase
           .from("user_roles")
           .select("role")
@@ -239,15 +239,19 @@ function PickleballPage() {
     }
   };
 
-  // Admin action: Toggle court maintenance status
-  const toggleCourtStatus = (courtId: string) => {
-    if (!isUserAdminRole) return;
+  // Admin action: Update court status (Available / In Play / Maintenance)
+  const handleUpdateCourtStatus = (courtId: string, newStatus: "available" | "in_use" | "maintenance") => {
+    if (!isUserAdminRole || !isAdmin) return;
     setCourts((prev) =>
       prev.map((c) => {
         if (c.id === courtId) {
-          const nextStatus = c.status === "maintenance" ? "available" : "maintenance";
-          toast.success(`${c.name} status changed to ${nextStatus.toUpperCase()}`);
-          return { ...c, status: nextStatus };
+          toast.success(`${c.name} status changed to ${newStatus.replace("_", " ").toUpperCase()}`);
+          return {
+            ...c,
+            status: newStatus,
+            currentSessionUntil: newStatus === "available" ? undefined : c.currentSessionUntil,
+            nextSlot: newStatus === "available" ? "Available now" : `Status: ${newStatus}`,
+          };
         }
         return c;
       })
@@ -271,7 +275,7 @@ function PickleballPage() {
             </p>
           </div>
 
-          {/* Admin Toggle Switch - Hidden for non-admin users */}
+          {/* Admin Toggle Switch */}
           {isUserAdminRole && (
             <div className="rounded-2xl border bg-background/80 p-3 shadow-sm backdrop-blur">
               <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground">
@@ -353,7 +357,7 @@ function PickleballPage() {
                       </span>
                     ) : court.status === "in_use" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                        <Clock className="h-3.5 w-3.5" /> In Play ({court.currentSessionUntil})
+                        <Clock className="h-3.5 w-3.5" /> In Play {court.currentSessionUntil ? `(${court.currentSessionUntil})` : ""}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
@@ -396,16 +400,42 @@ function PickleballPage() {
                     Book {court.name.split("—")[0]}
                   </Button>
 
+                  {/* Admin Quick Status Override Controls */}
                   {isUserAdminRole && isAdmin && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="w-full text-xs"
-                      onClick={() => toggleCourtStatus(court.id)}
-                    >
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                      Set as {court.status === "maintenance" ? "Available" : "Maintenance"}
-                    </Button>
+                    <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5 space-y-2">
+                      <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 text-center">
+                        Admin Status Override
+                      </p>
+                      <div className="grid grid-cols-3 gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={court.status === "available" ? "default" : "outline"}
+                          className="text-[10px] h-7 px-1"
+                          onClick={() => handleUpdateCourtStatus(court.id, "available")}
+                        >
+                          <CheckCircle2 className="mr-0.5 h-3 w-3" /> Available
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={court.status === "in_use" ? "default" : "outline"}
+                          className="text-[10px] h-7 px-1"
+                          onClick={() => handleUpdateCourtStatus(court.id, "in_use")}
+                        >
+                          <PlayCircle className="mr-0.5 h-3 w-3" /> In Play
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={court.status === "maintenance" ? "default" : "outline"}
+                          className="text-[10px] h-7 px-1"
+                          onClick={() => handleUpdateCourtStatus(court.id, "maintenance")}
+                        >
+                          <Wrench className="mr-0.5 h-3 w-3" /> Maint.
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
