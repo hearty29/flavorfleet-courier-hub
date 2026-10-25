@@ -901,7 +901,7 @@ function PickleballPage() {
                           GCash Account Details
                         </p>
                         <p className="text-muted-foreground">Account Name: <strong>Roadside Paddles</strong></p>
-                        <p className="text-muted-foreground">GCash Number: <strong className="text-foreground">0917-123-4567</strong></p>
+                        <p className="text-muted-foreground">GCash Number: <strong className="text-foreground">0917-123-47</strong></p>
                       </div>
 
                       <div>
