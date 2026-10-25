@@ -96,19 +96,19 @@ function PickleballPage() {
   const [activeTab, setActiveTab] = useState<Tab>("status");
 
   // Booking form state
-  const [selectedCourt, setSelectedCourt] = useState(COURTS[0].id);
+  const [selectedCourt, setSelectedCourt] = useState(COURTS[0]!.id);
   const [bookingDate, setBookingDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
-  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[4]);
+  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[4]!);
   const [playerName, setPlayerName] = useState("");
   const [playerContact, setPlayerContact] = useState("");
   const [paddlesNeeded, setPaddlesNeeded] = useState(0);
   const [ballsNeeded, setBallsNeeded] = useState(false);
   const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
 
-  const courtObj = COURTS.find((c) => c.id === selectedCourt) || COURTS[0];
+  const courtObj = COURTS.find((c) => c.id === selectedCourt) || COURTS[0]!;
   const isNight = selectedSlot.includes("PM") && parseInt(selectedSlot) >= 6;
   const courtFee = isNight ? courtObj.rateNight : courtObj.rateDay;
   const paddleFee = paddlesNeeded * 50;
