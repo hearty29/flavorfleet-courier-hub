@@ -113,9 +113,9 @@ function PickleballPage() {
     };
   }, []);
 
-  // Fetch courts dynamically from Supabase with proper type casting
+  // Fetch courts dynamically from Supabase
   const queryClient = useQueryClient();
-  const { data: courts = [] } = useQuery({
+  const { data: courts = [], refetch: refetchCourts } = useQuery({
     queryKey: ["courts-list"],
     queryFn: async () => {
       const { data, error } = await supabase.from("courts").select("*");
@@ -226,7 +226,7 @@ function PickleballPage() {
     }
   };
 
-  // Admin action: Update court status in database
+  // Admin action: Update court status in database with immediate invalidation
   const handleUpdateCourtStatus = async (courtId: string, newStatus: "available" | "in_use" | "maintenance") => {
     if (!isUserAdminRole || !isAdmin) return;
     
@@ -242,12 +242,13 @@ function PickleballPage() {
       .eq("id", courtId);
 
     if (error) {
-      toast.error("Failed to update court status in database.");
+      toast.error(`Error: ${error.message}`);
       return;
     }
 
     toast.success(`Court status updated to ${newStatus.replace("_", " ").toUpperCase()}!`);
-    queryClient.invalidateQueries({ queryKey: ["courts-list"] });
+    await queryClient.invalidateQueries({ queryKey: ["courts-list"] });
+    refetchCourts();
   };
 
   return (
