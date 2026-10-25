@@ -109,7 +109,7 @@ function PickleballPage() {
 
   // Booking form state
   const [selectedCourt, setSelectedCourt] = useState(COURTS[0]!.id);
-  const [bookingDate, setBookingDate] = useState(() => {
+  const [bookingDate, setBookingDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
