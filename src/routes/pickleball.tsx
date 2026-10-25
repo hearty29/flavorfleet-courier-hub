@@ -416,7 +416,7 @@ function PickleballPage() {
                               taken
                                 ? "cursor-not-allowed border-destructive/40 bg-destructive/10 text-destructive"
                                 : picked
-                                  ? "border-success bg-success text-success-foreground font-semibold ring-2 ring-success/40"
+                                  ? "border-success bg-success text-primary-foreground font-semibold ring-2 ring-success/40"
                                   : "border-success/40 bg-success/10 text-success hover:bg-success/20"
                             }`}
                           >
