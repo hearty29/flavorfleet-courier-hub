@@ -111,7 +111,7 @@ function PickleballPage() {
   const [selectedCourt, setSelectedCourt] = useState(COURTS[0]!.id);
   const [bookingDate, setBookingDate] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    return today.toISOString().split("T")[0] ?? "";
   });
   const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[4]!);
   const [playerName, setPlayerName] = useState("");
@@ -550,7 +550,7 @@ function PickleballPage() {
                   Pay at the counter on arrival — cash or e-wallet.
                 </p>
 
-                <Button type="submit" className="mt-5 w-full">
+                <Button type="submit" className="mt-5 w-full" disabled={saving}>
                   Confirm Reservation
                 </Button>
               </div>
