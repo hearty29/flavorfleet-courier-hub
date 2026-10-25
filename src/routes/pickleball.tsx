@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   CalendarDays, 
   Clock, 
@@ -74,6 +76,16 @@ const COURTS: Court[] = [
     status: "available",
     nextSlot: "Available now",
   },
+  {
+    id: "court-4",
+    name: "Court 4 — Kitchen Corner",
+    type: "Covered Standard Court",
+    surface: "Premium Hardcourt",
+    rateDay: 300,
+    rateNight: 450,
+    status: "available",
+    nextSlot: "Available now",
+  },
 ];
 
 const TIME_SLOTS = [
@@ -115,13 +127,38 @@ function PickleballPage() {
   const ballFee = ballsNeeded ? 120 : 0;
   const totalAmount = courtFee + paddleFee + ballFee;
 
-  const handleBookSubmit = (e: React.FormEvent) => {
+  const queryClient = useQueryClient();
+  const { data: bookedSlots = [] } = useQuery({
+    queryKey: ["booked-slots", selectedCourt, bookingDate],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_booked_slots", { _court: selectedCourt, _date: bookingDate });
+      if (error) throw error;
+      return (data ?? []) as string[];
+    },
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!playerName.trim() || !playerContact.trim()) {
       toast.error("Please enter your name and phone number");
       return;
     }
-
+    if (bookedSlots.includes(selectedSlot)) {
+      toast.error("That time slot is not available. Please pick a green slot.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.rpc("book_court", {
+      _court: selectedCourt, _date: bookingDate, _slot: selectedSlot,
+      _name: playerName, _contact: playerContact, _paddles: paddlesNeeded, _balls: ballsNeeded, _total: totalAmount,
+    });
+    setSaving(false);
+    queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setSubmittedBooking(true);
     toast.success(`Court reserved! See you on ${bookingDate} at ${selectedSlot}.`);
   };
@@ -366,20 +403,30 @@ function PickleballPage() {
                       Time Slot (1 hour)
                     </label>
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {TIME_SLOTS.map((slot) => (
-                        <button
-                          type="button"
-                          key={slot}
-                          onClick={() => setSelectedSlot(slot)}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                            selectedSlot === slot
-                              ? "border-primary bg-primary text-primary-foreground font-semibold"
-                              : "border-border hover:bg-muted/50"
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
+                      {TIME_SLOTS.map((slot) => {
+                        const taken = bookedSlots.includes(slot);
+                        const picked = selectedSlot === slot && !taken;
+                        return (
+                          <button
+                            type="button"
+                            key={slot}
+                            disabled={taken}
+                            onClick={() => setSelectedSlot(slot)}
+                            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                              taken
+                                ? "cursor-not-allowed border-destructive/40 bg-destructive/10 text-destructive"
+                                : picked
+                                  ? "border-success bg-success text-success-foreground font-semibold ring-2 ring-success/40"
+                                  : "border-success/40 bg-success/10 text-success hover:bg-success/20"
+                            }`}
+                          >
+                            <span className="block">{slot}</span>
+                            <span className="block text-[10px] font-bold uppercase">
+                              {taken ? "Not available" : "Available"}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
