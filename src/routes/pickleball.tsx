@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,8 +10,10 @@ import {
   AlertCircle, 
   ShieldCheck, 
   Sparkles, 
-  Phone, 
-  Users 
+  Users,
+  Shield,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -44,7 +46,7 @@ interface Court {
   nextSlot: string;
 }
 
-const COURTS: Court[] = [
+const INITIAL_COURTS: Court[] = [
   {
     id: "court-1",
     name: "Court 1 — Pro Arena",
@@ -106,9 +108,11 @@ const TIME_SLOTS = [
 
 function PickleballPage() {
   const [activeTab, setActiveTab] = useState<Tab>("status");
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
 
   // Booking form state
-  const [selectedCourt, setSelectedCourt] = useState(COURTS[0]!.id);
+  const [selectedCourt, setSelectedCourt] = useState(courts[0]!.id);
   const [bookingDate, setBookingDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split("T")[0] ?? "";
@@ -120,7 +124,7 @@ function PickleballPage() {
   const [ballsNeeded, setBallsNeeded] = useState(false);
   const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
 
-  const courtObj = COURTS.find((c) => c.id === selectedCourt) || COURTS[0]!;
+  const courtObj = courts.find((c) => c.id === selectedCourt) || courts[0]!;
   const isNight = selectedSlot.includes("PM") && parseInt(selectedSlot) >= 6;
   const courtFee = isNight ? courtObj.rateNight : courtObj.rateDay;
   const paddleFee = paddlesNeeded * 50;
@@ -128,7 +132,7 @@ function PickleballPage() {
   const totalAmount = courtFee + paddleFee + ballFee;
 
   const queryClient = useQueryClient();
-  const { data: bookedSlots = [] } = useQuery({
+  const { data: bookedSlots = [], refetch: refetchBookedSlots } = useQuery({
     queryKey: ["booked-slots", selectedCourt, bookingDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_booked_slots", { _court: selectedCourt, _date: bookingDate });
@@ -163,20 +167,81 @@ function PickleballPage() {
     toast.success(`Court reserved! See you on ${bookingDate} at ${selectedSlot}.`);
   };
 
+  // Admin action: Cancel/Free up slot
+  const handleCancelBookingSlot = async (slotToCancel: string) => {
+    if (!isAdmin) return;
+    try {
+      const { error } = await supabase.rpc("cancel_court_booking", {
+        _court: selectedCourt,
+        _date: bookingDate,
+        _slot: slotToCancel,
+      });
+
+      if (error) {
+        // Fallback for fallback/direct deletion if RPC is not defined
+        const { error: deleteErr } = await supabase
+          .from("court_bookings")
+          .delete()
+          .match({ court_id: selectedCourt, booking_date: bookingDate, time_slot: slotToCancel });
+        
+        if (deleteErr) throw deleteErr;
+      }
+
+      toast.success(`Slot (${slotToCancel}) is now marked as Available!`);
+      queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
+      refetchBookedSlots();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to make slot available.");
+    }
+  };
+
+  // Admin action: Toggle court maintenance status
+  const toggleCourtStatus = (courtId: string) => {
+    setCourts((prev) =>
+      prev.map((c) => {
+        if (c.id === courtId) {
+          const nextStatus = c.status === "maintenance" ? "available" : "maintenance";
+          toast.success(`${c.name} status changed to ${nextStatus.toUpperCase()}`);
+          return { ...c, status: nextStatus };
+        }
+        return c;
+      })
+    );
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 pb-20">
       {/* Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/15 via-primary/5 to-muted p-6 md:p-10">
-        <div className="max-w-2xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
-            <Sparkles className="h-3.5 w-3.5" /> Roadside Courts & Lounge
-          </span>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight md:text-5xl">
-            Pickleball Hub
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground md:text-lg">
-            High-grade tournament courts, premium lighting, and refreshing coffee right by the sideline.
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold text-primary">
+              <Sparkles className="h-3.5 w-3.5" /> Roadside Courts & Lounge
+            </span>
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight md:text-5xl">
+              Pickleball Hub
+            </h1>
+            <p className="mt-2 text-base text-muted-foreground md:text-lg">
+              High-grade tournament courts, premium lighting, and refreshing coffee right by the sideline.
+            </p>
+          </div>
+
+          {/* Admin Toggle Switch */}
+          <div className="rounded-2xl border bg-background/80 p-3 shadow-sm backdrop-blur">
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground">
+              <Shield className={`h-4 w-4 ${isAdmin ? "text-amber-500" : "text-muted-foreground"}`} />
+              <span>Admin Mode</span>
+              <input
+                type="checkbox"
+                checked={isAdmin}
+                onChange={(e) => {
+                  setIsAdmin(e.target.checked);
+                  toast(e.target.checked ? "Admin Controls Enabled" : "Switched to Public View");
+                }}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+            </label>
+          </div>
         </div>
 
         {/* Sub-Navigation Pills */}
@@ -227,7 +292,7 @@ function PickleballPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {COURTS.map((court) => (
+            {courts.map((court) => (
               <div
                 key={court.id}
                 className="flex flex-col justify-between rounded-2xl border bg-card p-6 shadow-sm transition hover:shadow-md"
@@ -272,16 +337,30 @@ function PickleballPage() {
                   </p>
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="mt-6 w-full"
-                  onClick={() => {
-                    setSelectedCourt(court.id);
-                    setActiveTab("book");
-                  }}
-                >
-                  Book {court.name.split("—")[0]}
-                </Button>
+                <div className="mt-6 flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedCourt(court.id);
+                      setActiveTab("book");
+                    }}
+                  >
+                    Book {court.name.split("—")[0]}
+                  </Button>
+
+                  {isAdmin && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => toggleCourtStatus(court.id)}
+                    >
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Set as {court.status === "maintenance" ? "Available" : "Maintenance"}
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -362,7 +441,7 @@ function PickleballPage() {
                 <div className="rounded-2xl border bg-card p-6 shadow-sm">
                   <h3 className="text-lg font-bold">1. Select Court</h3>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    {COURTS.map((c) => (
+                    {courts.map((c) => (
                       <button
                         type="button"
                         key={c.id}
@@ -385,7 +464,15 @@ function PickleballPage() {
 
                 {/* Step 2: Date & Slot */}
                 <div className="rounded-2xl border bg-card p-6 shadow-sm">
-                  <h3 className="text-lg font-bold">2. Date & Time</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold">2. Date & Time</h3>
+                    {isAdmin && (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                        Admin Controls Active
+                      </span>
+                    )}
+                  </div>
+
                   <div className="mt-4">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Booking Date
@@ -407,24 +494,40 @@ function PickleballPage() {
                         const taken = bookedSlots.includes(slot);
                         const picked = selectedSlot === slot && !taken;
                         return (
-                          <button
-                            type="button"
-                            key={slot}
-                            disabled={taken}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                              taken
-                                ? "cursor-not-allowed border-destructive/40 bg-destructive/10 text-destructive"
-                                : picked
-                                  ? "border-success bg-success text-primary-foreground font-semibold ring-2 ring-success/40"
-                                  : "border-success/40 bg-success/10 text-success hover:bg-success/20"
-                            }`}
-                          >
-                            <span className="block">{slot}</span>
-                            <span className="block text-[10px] font-bold uppercase">
-                              {taken ? "Not available" : "Available"}
-                            </span>
-                          </button>
+                          <div key={slot} className="relative group">
+                            <button
+                              type="button"
+                              disabled={taken && !isAdmin}
+                              onClick={() => {
+                                if (!taken) setSelectedSlot(slot);
+                              }}
+                              className={`w-full rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                                taken
+                                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                                  : picked
+                                    ? "border-emerald-600 bg-emerald-600 text-white font-semibold ring-2 ring-emerald-600/40"
+                                    : "border-emerald-600/40 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100"
+                              }`}
+                            >
+                              <span className="block">{slot}</span>
+                              <span className="block text-[10px] font-bold uppercase">
+                                {taken ? "Not Available" : "Available"}
+                              </span>
+                            </button>
+
+                            {/* Admin Remove/Free Up Button */}
+                            {isAdmin && taken && (
+                              <button
+                                type="button"
+                                title="Admin: Cancel reservation and make available"
+                                onClick={() => handleCancelBookingSlot(slot)}
+                                className="mt-1 flex items-center justify-center gap-1 text-[11px] w-full rounded-md bg-destructive text-destructive-foreground py-1 font-semibold hover:bg-destructive/90 transition shadow-sm"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Make Available
+                              </button>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
