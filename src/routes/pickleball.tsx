@@ -96,19 +96,19 @@ function PickleballPage() {
   const [activeTab, setActiveTab] = useState<Tab>("status");
 
   // Booking form state
-  const [selectedCourt, setSelectedCourt] = useState(COURTS[0].id);
+  const [selectedCourt, setSelectedCourt] = useState(COURTS[0]!.id);
   const [bookingDate, setBookingDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   });
-  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[4]);
+  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[4]!);
   const [playerName, setPlayerName] = useState("");
   const [playerContact, setPlayerContact] = useState("");
   const [paddlesNeeded, setPaddlesNeeded] = useState(0);
   const [ballsNeeded, setBallsNeeded] = useState(false);
   const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
 
-  const courtObj = COURTS.find((c) => c.id === selectedCourt) || COURTS[0];
+  const courtObj = COURTS.find((c) => c.id === selectedCourt) || COURTS[0]!;
   const isNight = selectedSlot.includes("PM") && parseInt(selectedSlot) >= 6;
   const courtFee = isNight ? courtObj.rateNight : courtObj.rateDay;
   const paddleFee = paddlesNeeded * 50;
@@ -469,4 +469,48 @@ function PickleballPage() {
                     <span className="text-muted-foreground">Court:</span>
                     <span className="font-semibold">{courtObj.name}</span>
                   </div>
-                  <div className="fle
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="font-semibold">{bookingDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Time Slot:</span>
+                    <span className="font-semibold">{selectedSlot}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Court Fee (1 hr):</span>
+                    <span className="font-semibold">₱{courtFee}</span>
+                  </div>
+                  {paddlesNeeded > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Paddle Rental ({paddlesNeeded}):</span>
+                      <span className="font-semibold">₱{paddleFee}</span>
+                    </div>
+                  )}
+                  {ballsNeeded && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pickleball Can:</span>
+                      <span className="font-semibold">₱{ballFee}</span>
+                    </div>
+                  )}
+                  <div className="mt-2 flex justify-between border-t pt-3 text-base font-bold">
+                    <span>Total:</span>
+                    <span className="text-primary">₱{totalAmount}</span>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Pay at the counter on arrival — cash or e-wallet.
+                </p>
+
+                <Button type="submit" className="mt-5 w-full">
+                  Confirm Reservation
+                </Button>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
+    </main>
+  );
+}
