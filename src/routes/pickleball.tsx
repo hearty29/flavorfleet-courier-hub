@@ -13,7 +13,6 @@ import {
   Users,
   Shield,
   Trash2,
-  RefreshCw,
   PlayCircle,
   Wrench
 } from "lucide-react";
@@ -48,50 +47,6 @@ interface Court {
   nextSlot: string;
 }
 
-const INITIAL_COURTS: Court[] = [
-  {
-    id: "court-1",
-    name: "Court 1 — Pro Arena",
-    type: "Covered Championship Court",
-    surface: "Cushioned Acrylic 8-layer",
-    rateDay: 350,
-    rateNight: 500,
-    status: "available",
-    nextSlot: "Available now",
-  },
-  {
-    id: "court-2",
-    name: "Court 2 — Baseline Court",
-    type: "Covered Standard Court",
-    surface: "Premium Hardcourt",
-    rateDay: 300,
-    rateNight: 450,
-    status: "in_use",
-    currentSessionUntil: "5:00 PM",
-    nextSlot: "Next available: 5:00 PM",
-  },
-  {
-    id: "court-3",
-    name: "Court 3 — Open Dinker",
-    type: "Outdoor Floodlit Court",
-    surface: "Textured Hardcourt",
-    rateDay: 250,
-    rateNight: 400,
-    status: "available",
-    nextSlot: "Available now",
-  },
-  {
-    id: "court-4",
-    name: "Court 4 — Kitchen Corner",
-    type: "Covered Standard Court",
-    surface: "Premium Hardcourt",
-    rateDay: 300,
-    rateNight: 450,
-    status: "available",
-    nextSlot: "Available now",
-  },
-];
-
 const TIME_SLOTS = [
   "06:00 AM - 07:00 AM",
   "07:00 AM - 08:00 AM",
@@ -112,9 +67,8 @@ function PickleballPage() {
   const [activeTab, setActiveTab] = useState<Tab>("status");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isUserAdminRole, setIsUserAdminRole] = useState<boolean>(false);
-  const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
 
-  // Check current user role from Supabase Auth
+  // Check current user role from Supabase Auth safely
   useEffect(() => {
     async function checkAdminStatus() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -125,7 +79,10 @@ function PickleballPage() {
       }
 
       const user = session.user;
-      const role = user.app_metadata?.role || user.user_metadata?.role;
+      const userMeta = user.user_metadata as Record<string, any> | undefined;
+      const appMeta = user.app_metadata as Record<string, any> | undefined;
+      const role = appMeta?.role || userMeta?.role;
+
       if (role === "admin") {
         setIsUserAdminRole(true);
       } else {
@@ -156,27 +113,57 @@ function PickleballPage() {
     };
   }, []);
 
+  // Fetch courts dynamically from Supabase with proper type casting
+  const queryClient = useQueryClient();
+  const { data: courts = [] } = useQuery({
+    queryKey: ["courts-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("courts").select("*");
+      if (error) throw error;
+      return (data || []).map((c: any) => ({
+        id: c.id as string,
+        name: c.name as string,
+        type: c.type as string,
+        surface: c.surface as string,
+        rateDay: Number(c.rate_day),
+        rateNight: Number(c.rate_night),
+        status: (c.status || "available") as "available" | "in_use" | "maintenance",
+        currentSessionUntil: c.current_session_until as string | undefined,
+        nextSlot: (c.next_slot || "Available now") as string,
+      })) as Court[];
+    },
+  });
+
   // Booking form state
-  const [selectedCourt, setSelectedCourt] = useState(courts[0]!.id);
+  const [selectedCourt, setSelectedCourt] = useState<string>("court-1");
   const [bookingDate, setBookingDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split("T")[0] ?? "";
   });
-  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[4]!);
-  const [playerName, setPlayerName] = useState("");
-  const [playerContact, setPlayerContact] = useState("");
-  const [paddlesNeeded, setPaddlesNeeded] = useState(0);
-  const [ballsNeeded, setBallsNeeded] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<string>(TIME_SLOTS[4]!);
+  const [playerName, setPlayerName] = useState<string>("");
+  const [playerContact, setPlayerContact] = useState<string>("");
+  const [paddlesNeeded, setPaddlesNeeded] = useState<number>(0);
+  const [ballsNeeded, setBallsNeeded] = useState<boolean>(false);
   const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
 
-  const courtObj = courts.find((c) => c.id === selectedCourt) || courts[0]!;
-  const isNight = selectedSlot.includes("PM") && parseInt(selectedSlot) >= 6;
+  const courtObj = courts.find((c) => c.id === selectedCourt) || courts[0] || {
+    id: "court-1",
+    name: "Court 1 — Pro Arena",
+    type: "Covered Championship Court",
+    surface: "Cushioned Acrylic",
+    rateDay: 350,
+    rateNight: 500,
+    status: "available",
+    nextSlot: "Available now"
+  };
+
+  const isNight = selectedSlot.includes("PM") && parseInt(selectedSlot, 10) >= 6;
   const courtFee = isNight ? courtObj.rateNight : courtObj.rateDay;
   const paddleFee = paddlesNeeded * 50;
   const ballFee = ballsNeeded ? 120 : 0;
   const totalAmount = courtFee + paddleFee + ballFee;
 
-  const queryClient = useQueryClient();
   const { data: bookedSlots = [], refetch: refetchBookedSlots } = useQuery({
     queryKey: ["booked-slots", selectedCourt, bookingDate],
     queryFn: async () => {
@@ -185,7 +172,7 @@ function PickleballPage() {
       return (data ?? []) as string[];
     },
   });
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
 
   const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,23 +226,28 @@ function PickleballPage() {
     }
   };
 
-  // Admin action: Update court status (Available / In Play / Maintenance)
-  const handleUpdateCourtStatus = (courtId: string, newStatus: "available" | "in_use" | "maintenance") => {
+  // Admin action: Update court status in database
+  const handleUpdateCourtStatus = async (courtId: string, newStatus: "available" | "in_use" | "maintenance") => {
     if (!isUserAdminRole || !isAdmin) return;
-    setCourts((prev) =>
-      prev.map((c) => {
-        if (c.id === courtId) {
-          toast.success(`${c.name} status changed to ${newStatus.replace("_", " ").toUpperCase()}`);
-          return {
-            ...c,
-            status: newStatus,
-            currentSessionUntil: newStatus === "available" ? undefined : c.currentSessionUntil,
-            nextSlot: newStatus === "available" ? "Available now" : `Status: ${newStatus}`,
-          };
-        }
-        return c;
-      })
-    );
+    
+    const updatePayload = {
+      status: newStatus,
+      current_session_until: newStatus === "available" ? null : "5:00 PM",
+      next_slot: newStatus === "available" ? "Available now" : `Status: ${newStatus}`,
+    };
+
+    const { error } = await supabase
+      .from("courts")
+      .update(updatePayload)
+      .eq("id", courtId);
+
+    if (error) {
+      toast.error("Failed to update court status in database.");
+      return;
+    }
+
+    toast.success(`Court status updated to ${newStatus.replace("_", " ").toUpperCase()}!`);
+    queryClient.invalidateQueries({ queryKey: ["courts-list"] });
   };
 
   return (
