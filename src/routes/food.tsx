@@ -34,6 +34,7 @@ export const Route = createFileRoute("/food")({
 
 type Tab = "menu" | "orders";
 type PaymentMethod = "counter" | "gcash";
+type OrderStatus = "pending" | "preparing" | "out_for_delivery" | "completed";
 
 interface MenuItem {
   id: string;
@@ -47,16 +48,22 @@ interface CartItem extends MenuItem {
   quantity: number;
 }
 
+interface OrderItem {
+  name: string;
+  quantity: number;
+  price: number;
+}
+
 interface FoodOrder {
   id: string;
   customer_name: string;
   customer_contact: string;
-  items: Array<{ name: string; quantity: number; price: number }>;
+  items: OrderItem[];
   total_amount: number;
   payment_method: string;
   gcash_ref?: string;
   receipt_url?: string;
-  status: "pending" | "preparing" | "out_for_delivery" | "completed";
+  status: OrderStatus;
   created_at: string;
 }
 
@@ -76,14 +83,14 @@ function FoodPage() {
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState("");
-  const [customerContact, setCustomerContact] = useState("");
+  const [customerName, setCustomerName] = useState<string>("");
+  const [customerContact, setCustomerContact] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("counter");
-  const [gcashRef, setGcashRef] = useState("");
+  const [gcashRef, setGcashRef] = useState<string>("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [submittedOrder, setSubmittedOrder] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [submittedOrder, setSubmittedOrder] = useState<boolean>(false);
 
   // Modal receipt viewer
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -129,7 +136,18 @@ function FoodPage() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as FoodOrder[];
+      return (data || []).map((row: any) => ({
+        id: row.id as string,
+        customer_name: row.customer_name as string,
+        customer_contact: row.customer_contact as string,
+        items: (typeof row.items === "string" ? JSON.parse(row.items) : row.items || []) as OrderItem[],
+        total_amount: Number(row.total_amount),
+        payment_method: (row.payment_method || "counter") as string,
+        gcash_ref: row.gcash_ref as string | undefined,
+        receipt_url: row.receipt_url as string | undefined,
+        status: (row.status || "pending") as OrderStatus,
+        created_at: row.created_at as string,
+      })) as FoodOrder[];
     },
   });
 
@@ -213,7 +231,7 @@ function FoodPage() {
     }
 
     // Insert into cafe_orders
-    const orderItems = cart.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price }));
+    const orderItems: OrderItem[] = cart.map((i) => ({ name: i.name, quantity: i.quantity, price: i.price }));
 
     const { error } = await supabase.from("cafe_orders").insert({
       customer_name: customerName,
@@ -239,7 +257,7 @@ function FoodPage() {
   };
 
   // Rider/Admin Order Status Update
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     const { error } = await supabase
       .from("cafe_orders")
       .update({ status: newStatus })
@@ -483,4 +501,117 @@ function FoodPage() {
                             <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                             <UploadCloud className="h-5 w-5 text-blue-500 mb-1" />
                             <span className="text-[11px]">Choose File</span>
-          
+                          </div>
+                          {receiptPreview && (
+                            <img src={receiptPreview} alt="Receipt" className="mt-2 h-20 w-20 object-cover rounded-lg border" />
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={saving}>
+                      {saving ? "Sending Order..." : "Confirm & Send Order"}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* VIEW 2: LIVE ORDERS & RIDER DASHBOARD */}
+      {activeTab === "orders" && (
+        <section className="mt-8 space-y-6">
+          <div className="flex items-center justify-between border-b pb-4">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Bell className="h-6 w-6 text-primary animate-bounce" /> Live Rider & Order Dashboard
+              </h2>
+              <p className="text-sm text-muted-foreground">Monitor kitchen orders and rider delivery statuses in real-time.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {orders.length === 0 ? (
+              <p className="py-12 text-center text-sm text-muted-foreground md:col-span-2">No active food orders found.</p>
+            ) : (
+              orders.map((order) => (
+                <div key={order.id} className="flex flex-col justify-between rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-base">{order.customer_name}</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase ${
+                        order.status === "pending" ? "bg-amber-100 text-amber-800" :
+                        order.status === "preparing" ? "bg-blue-100 text-blue-800" :
+                        order.status === "out_for_delivery" ? "bg-purple-100 text-purple-800" :
+                        "bg-emerald-100 text-emerald-800"
+                      }`}>
+                        {order.status.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 text-xs space-y-1 text-muted-foreground">
+                      <p>Contact / Location: <strong className="text-foreground">{order.customer_contact}</strong></p>
+                      <p>Payment Method: <strong className="text-foreground uppercase">{order.payment_method}</strong></p>
+                      {order.gcash_ref && <p>GCash Ref: <strong className="text-blue-600">{order.gcash_ref}</strong></p>}
+                    </div>
+
+                    <div className="mt-3 rounded-xl bg-muted/50 p-3 text-xs space-y-1">
+                      <p className="font-bold text-foreground mb-1">Items:</p>
+                      {order.items?.map((item: OrderItem, idx: number) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>{item.quantity}x {item.name}</span>
+                          <span>₱{item.price * item.quantity}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t pt-1 font-bold text-foreground">
+                        <span>Total:</span>
+                        <span className="text-primary">₱{order.total_amount}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rider / Admin Actions */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                    {order.receipt_url && (
+                      <Button size="sm" variant="outline" className="text-xs" onClick={() => setPreviewImage(order.receipt_url!)}>
+                        <Eye className="h-3.5 w-3.5 mr-1" /> View Receipt
+                      </Button>
+                    )}
+
+                    {isAdmin && (
+                      <>
+                        <Button size="sm" variant="secondary" className="text-xs" onClick={() => updateOrderStatus(order.id, "preparing")}>
+                          <Clock className="h-3.5 w-3.5 mr-1" /> Preparing
+                        </Button>
+                        <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white text-xs" onClick={() => updateOrderStatus(order.id, "out_for_delivery")}>
+                          <Truck className="h-3.5 w-3.5 mr-1" /> Out for Delivery
+                        </Button>
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs" onClick={() => updateOrderStatus(order.id, "completed")}>
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Completed
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* FULLSCREEN RECEIPT MODAL */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="relative max-w-md w-full rounded-2xl bg-card p-3 border">
+            <Button size="icon" variant="ghost" className="absolute top-2 right-2 rounded-full" onClick={() => setPreviewImage(null)}>
+              <X className="h-4 w-4" />
+            </Button>
+            <img src={previewImage} alt="Payment Receipt" className="w-full h-auto max-h-[75vh] object-contain rounded-xl" />
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
