@@ -469,4 +469,48 @@ function PickleballPage() {
                     <span className="text-muted-foreground">Court:</span>
                     <span className="font-semibold">{courtObj.name}</span>
                   </div>
-                  <div className="fle
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="font-semibold">{bookingDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Time Slot:</span>
+                    <span className="font-semibold">{selectedSlot}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Court Fee (1 hr):</span>
+                    <span className="font-semibold">₱{courtFee}</span>
+                  </div>
+                  {paddlesNeeded > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Paddle Rental ({paddlesNeeded}):</span>
+                      <span className="font-semibold">₱{paddleFee}</span>
+                    </div>
+                  )}
+                  {ballsNeeded && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pickleball Can:</span>
+                      <span className="font-semibold">₱{ballFee}</span>
+                    </div>
+                  )}
+                  <div className="mt-2 flex justify-between border-t pt-3 text-base font-bold">
+                    <span>Total:</span>
+                    <span className="text-primary">₱{totalAmount}</span>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Pay at the counter on arrival — cash or e-wallet.
+                </p>
+
+                <Button type="submit" className="mt-5 w-full">
+                  Confirm Reservation
+                </Button>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
+    </main>
+  );
+}
