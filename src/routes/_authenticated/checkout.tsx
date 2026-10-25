@@ -1,96 +1,245 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Minus, Plus, Banknote, CreditCard } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { useCart, peso, DELIVERY_FEE } from "@/lib/cart";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import React, { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { ShoppingBag, ArrowLeft, CheckCircle2, ArrowRight } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/checkout")({
-  head: () => ({ meta: [{ title: "Checkout — Roadside Cafe" }, { name: "description", content: "Review your cart and place your order." }, { property: "og:title", content: "Checkout — Roadside Cafe" }, { property: "og:description", content: "Review your cart and place your order." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
-  component: Checkout,
-});
+// --- SUPABASE CLIENT SETUP ---
+const SUPABASE_URL = "https://nasfsyxtkryxkrxwftp.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; // Replace with your anon key if needed
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-function Checkout() {
-  const { items, setQty, subtotal, clear } = useCart();
-  const { session } = useAuth();
-  const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-  const { data: profile } = useQuery({
-    queryKey: ["profile", session?.user.id],
-    enabled: !!session,
-    queryFn: async () => (await supabase.from("profiles").select("*").eq("id", session!.user.id).maybeSingle()).data,
-  });
+export default function CheckoutRoute() {
+  const [customerName, setCustomerName] = useState("");
+  const [customerContact, setCustomerContact] = useState("");
+  const [location, setLocation] = useState("Tago");
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "counter" | "gcash">("cod");
+  const [gcashRef, setGcashRef] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [orderTotal, setOrderTotal] = useState(0);
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // Example cart items (replace or load from your global cart state/hook if applicable)
+  const cartItems = [
+    { id: "1", name: "Bangus", price: 148, quantity: 1 }
+  ];
+  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    setBusy(true);
-    const address = String(f.get("address"));
-    const phone = String(f.get("phone"));
-    const name = String(f.get("name"));
-    const { data, error } = await supabase.rpc("place_order", {
-      _items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
-      _address: address, _phone: phone, _name: name,
-      _notes: String(f.get("notes") || ""), _payment: "cod",
-    });
-    if (!error) await supabase.from("profiles").update({ address, phone, full_name: name }).eq("id", session!.user.id);
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    clear();
-    toast.success("Order placed!");
-    void data; navigate({ to: "/orders" });
+    if (cartItems.length === 0) return alert("Your cart is empty!");
+    if (!customerName || !customerContact) return alert("Please fill in your name and contact details.");
+
+    setLoading(true);
+    let receiptUrl = "";
+
+    // Upload receipt if GCash is selected
+    if (paymentMethod === "gcash" && receiptFile) {
+      const fileExt = receiptFile.name.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("gcash-receipts")
+        .upload(fileName, receiptFile);
+
+      if (uploadError) {
+        alert("Receipt upload failed: " + uploadError.message);
+        setLoading(false);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("gcash-receipts")
+        .getPublicUrl(fileName);
+      receiptUrl = publicUrlData.publicUrl;
+    }
+
+    // Insert order into cafe_orders table (Triggers Semaphore SMS automatically)
+    const { error: orderError } = await supabase.from("cafe_orders").insert([
+      {
+        customer_name: customerName,
+        customer_contact: customerContact,
+        items: cartItems,
+        total_amount: totalAmount,
+        payment_method: paymentMethod,
+        location: location,
+        gcash_ref: paymentMethod === "gcash" ? gcashRef : null,
+        receipt_url: receiptUrl || null,
+        status: "pending",
+        rider_phone: "09171234567" // Default rider phone for SMS notifications
+      }
+    ]);
+
+    setLoading(false);
+
+    if (orderError) {
+      alert("Error placing order: " + orderError.message);
+    } else {
+      setOrderTotal(totalAmount);
+      setSubmitted(true); // Show success view inline without 404 router errors
+    }
   };
 
-  if (!items.length)
+  if (submitted) {
     return (
-      <main className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="text-3xl font-bold">Your cart is empty</h1>
-        <Button asChild className="mt-6"><Link to="/">Browse menu</Link></Button>
-      </main>
-    );
-
-  return (
-    <main className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[1fr_380px]">
-      <section>
-        <h1 className="text-3xl font-bold">Your order</h1>
-        <ul className="mt-4 divide-y rounded-2xl border bg-card">
-          {items.map((i) => (
-            <li key={i.id} className="flex items-center gap-3 p-4">
-              {i.image_url && <img src={i.image_url} alt="" className="h-14 w-14 rounded-lg object-cover" />}
-              <div className="flex-1"><p className="font-medium">{i.name}</p><p className="text-sm text-muted-foreground">{peso(i.price)}</p></div>
-              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(i.id, i.quantity - 1)} aria-label="Decrease"><Minus /></Button>
-              <span className="w-6 text-center">{i.quantity}</span>
-              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(i.id, i.quantity + 1)} aria-label="Increase"><Plus /></Button>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-card p-5" key={profile?.id ?? "p"}>
-        <h2 className="text-xl font-bold">Delivery details</h2>
-        <div><Label htmlFor="n">Name</Label><Input id="n" name="name" defaultValue={profile?.full_name ?? ""} required /></div>
-        <div><Label htmlFor="ph">Phone</Label><Input id="ph" name="phone" defaultValue={profile?.phone ?? ""} required /></div>
-        <div><Label htmlFor="ad">Address</Label><Textarea id="ad" name="address" defaultValue={profile?.address ?? ""} required /></div>
-        <div><Label htmlFor="no">Notes for rider</Label><Input id="no" name="notes" placeholder="Gate code, landmark…" /></div>
-        <div>
-          <Label>Payment</Label>
-          <div className="mt-2 grid gap-2">
-            <div className="flex items-center gap-2 rounded-lg border-2 border-primary p-3"><Banknote className="text-primary" /> Cash on delivery</div>
-            <div className="flex items-center gap-2 rounded-lg border p-3 text-muted-foreground"><CreditCard /> Card / online — coming soon</div>
+      <div className="min-h-screen bg-[#FDFBF7] text-slate-800 flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-md w-full text-center space-y-4">
+          <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800">Order Placed Successfully!</h2>
+          <p className="text-xs text-slate-500">
+            Your order has been sent to our kitchen and our rider notification has been triggered via SMS.
+          </p>
+          <div className="bg-slate-50 p-3 rounded-xl text-left text-xs space-y-1 border border-slate-100">
+            <p className="font-semibold text-slate-700">Summary:</p>
+            <p className="text-slate-500">Customer: {customerName}</p>
+            <p className="text-slate-500">Location: {location}</p>
+            <p className="text-slate-500 font-bold text-emerald-700">Total: ₱{orderTotal}</p>
+          </div>
+          <div className="pt-2 flex flex-col gap-2">
+            <button
+              onClick={() => {
+                window.location.href = "/orders";
+              }}
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+            >
+              View Live Orders <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                window.location.href = "/food";
+              }}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold py-2.5 rounded-xl transition"
+            >
+              Back to Menu
+            </button>
           </div>
         </div>
-        <div className="space-y-1 border-t pt-4 text-sm">
-          <div className="flex justify-between"><span>Subtotal</span><span>{peso(subtotal)}</span></div>
-          <div className="flex justify-between"><span>Delivery fee</span><span>{peso(DELIVERY_FEE)}</span></div>
-          <div className="flex justify-between text-lg font-bold"><span>Total</span><span>{peso(subtotal + DELIVERY_FEE)}</span></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] text-slate-800 pb-12">
+      {/* HEADER */}
+      <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <a href="/food" className="text-slate-600 hover:text-slate-900">
+              <ArrowLeft className="w-5 h-5" />
+            </a>
+            <span className="text-lg font-extrabold text-orange-700 tracking-tight">
+              Checkout <span className="text-slate-800">Order</span>
+            </span>
+          </div>
         </div>
-        <Button className="w-full" size="lg" disabled={busy}>Place order</Button>
-      </form>
-    </main>
+      </header>
+
+      {/* CHECKOUT FORM */}
+      <main className="max-w-xl mx-auto px-4 py-6">
+        <form onSubmit={handlePlaceOrder} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-orange-600" /> Order Details
+          </h2>
+
+          {/* ORDER ITEMS SUMMARY */}
+          <div className="bg-slate-50 p-3 rounded-xl space-y-2 text-xs">
+            {cartItems.map((item, idx) => (
+              <div key={idx} className="flex justify-between text-slate-700">
+                <span>{item.quantity}× {item.name}</span>
+                <span className="font-semibold">₱{item.price * item.quantity}</span>
+              </div>
+            ))}
+            <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-slate-900 text-sm">
+              <span>Total Amount:</span>
+              <span className="text-orange-700">₱{totalAmount}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-600">Full Name</label>
+            <input
+              type="text"
+              required
+              placeholder="Juan Dela Cruz"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full text-xs p-2.5 border rounded-xl mt-1 outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-600">Contact Number</label>
+            <input
+              type="tel"
+              required
+              placeholder="09171234567"
+              value={customerContact}
+              onChange={(e) => setCustomerContact(e.target.value)}
+              className="w-full text-xs p-2.5 border rounded-xl mt-1 outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-600">Delivery Location / Sitios / Barangay</label>
+            <input
+              type="text"
+              required
+              placeholder="Tago"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="w-full text-xs p-2.5 border rounded-xl mt-1 outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-600">Payment Option</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as "cod" | "counter" | "gcash")}
+              className="w-full text-xs p-2.5 border rounded-xl mt-1 outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+            >
+              <option value="cod">Cash on delivery</option>
+              <option value="counter">Pay at Counter</option>
+              <option value="gcash">GCash Online</option>
+            </select>
+          </div>
+
+          {/* GCASH FIELDS */}
+          {paymentMethod === "gcash" && (
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-600">GCash Reference No.</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="1002345678"
+                  value={gcashRef}
+                  onChange={(e) => setGcashRef(e.target.value)}
+                  className="w-full text-xs p-2 border rounded-lg mt-1 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600">Upload Receipt Screenshot</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  required
+                  onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs mt-1"
+                />
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-slate-300 text-white font-bold py-3 rounded-xl text-xs transition shadow-md"
+          >
+            {loading ? "Placing Order..." : "Confirm & Send Order"}
+          </button>
+        </form>
+      </main>
+    </div>
   );
 }
