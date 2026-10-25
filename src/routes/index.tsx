@@ -61,7 +61,7 @@ function Index() {
             </Button>
             <Button size="lg" variant="outline" asChild>
               <Link to="/apply-rider">
-                <Bike className="mr-2 h-5 w-5" /> Become our partner rider
+                <Bike className="mr-2 h-5 w-5" /> Be Part of Our Team as a Store Delivery Rider
               </Link>
             </Button>
           </div>
