@@ -14,7 +14,8 @@ import {
   Shield,
   Trash2,
   PlayCircle,
-  Wrench
+  Wrench,
+  Ban
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -199,7 +200,42 @@ function PickleballPage() {
     toast.success(`Court reserved! See you on ${bookingDate} at ${selectedSlot}.`);
   };
 
-  // Admin action: Cancel/Free up slot
+  // Admin action: Block/Mark an open slot as Not Available
+  const handleBlockSlot = async (slotToBlock: string) => {
+    if (!isAdmin || !isUserAdminRole) return;
+    try {
+      const { error } = await supabase.rpc("book_court", {
+        _court: selectedCourt,
+        _date: bookingDate,
+        _slot: slotToBlock,
+        _name: "ADMIN BLOCKED",
+        _contact: "N/A",
+        _paddles: 0,
+        _balls: false,
+        _total: 0,
+      });
+
+      if (error) {
+        // Fallback direct insert if RPC is unavailable
+        const { error: insertErr } = await supabase.from("court_bookings").insert({
+          court_id: selectedCourt,
+          booking_date: bookingDate,
+          time_slot: slotToBlock,
+          player_name: "ADMIN BLOCKED",
+          player_contact: "N/A",
+        });
+        if (insertErr) throw insertErr;
+      }
+
+      toast.success(`Slot (${slotToBlock}) marked as Not Available!`);
+      await queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
+      refetchBookedSlots();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to block slot.");
+    }
+  };
+
+  // Admin action: Cancel/Free up slot (Make Available)
   const handleCancelBookingSlot = async (slotToCancel: string) => {
     if (!isAdmin || !isUserAdminRole) return;
     try {
@@ -219,14 +255,14 @@ function PickleballPage() {
       }
 
       toast.success(`Slot (${slotToCancel}) is now marked as Available!`);
-      queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
+      await queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
       refetchBookedSlots();
     } catch (err: any) {
       toast.error(err.message || "Failed to make slot available.");
     }
   };
 
-  // Admin action: Update court status in database with immediate invalidation
+  // Admin action: Update court status in database
   const handleUpdateCourtStatus = async (courtId: string, newStatus: "available" | "in_use" | "maintenance") => {
     if (!isUserAdminRole || !isAdmin) return;
     
@@ -564,7 +600,7 @@ function PickleballPage() {
                         const taken = bookedSlots.includes(slot);
                         const picked = selectedSlot === slot && !taken;
                         return (
-                          <div key={slot} className="relative group">
+                          <div key={slot} className="relative flex flex-col">
                             <button
                               type="button"
                               disabled={taken && (!isAdmin || !isUserAdminRole)}
@@ -585,17 +621,31 @@ function PickleballPage() {
                               </span>
                             </button>
 
-                            {/* Admin Remove/Free Up Button */}
-                            {isUserAdminRole && isAdmin && taken && (
-                              <button
-                                type="button"
-                                title="Admin: Cancel reservation and make available"
-                                onClick={() => handleCancelBookingSlot(slot)}
-                                className="mt-1 flex items-center justify-center gap-1 text-[11px] w-full rounded-md bg-destructive text-destructive-foreground py-1 font-semibold hover:bg-destructive/90 transition shadow-sm"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                Make Available
-                              </button>
+                            {/* Admin Actions for Time Slots */}
+                            {isUserAdminRole && isAdmin && (
+                              <div className="mt-1">
+                                {taken ? (
+                                  <button
+                                    type="button"
+                                    title="Admin: Free up this slot"
+                                    onClick={() => handleCancelBookingSlot(slot)}
+                                    className="flex items-center justify-center gap-1 text-[11px] w-full rounded-md bg-emerald-600 text-white py-1 font-semibold hover:bg-emerald-700 transition shadow-sm"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Make Available
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    title="Admin: Block slot and mark as Not Available"
+                                    onClick={() => handleBlockSlot(slot)}
+                                    className="flex items-center justify-center gap-1 text-[11px] w-full rounded-md bg-destructive text-destructive-foreground py-1 font-semibold hover:bg-destructive/90 transition shadow-sm"
+                                  >
+                                    <Ban className="h-3 w-3" />
+                                    Mark Not Available
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         );
