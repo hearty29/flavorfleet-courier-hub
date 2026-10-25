@@ -15,7 +15,12 @@ import {
   Trash2,
   PlayCircle,
   Wrench,
-  Ban
+  Ban,
+  QrCode,
+  UploadCloud,
+  Eye,
+  X,
+  CreditCard
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,6 +40,7 @@ export const Route = createFileRoute("/pickleball")({
 });
 
 type Tab = "status" | "book";
+type PaymentMethod = "counter" | "gcash";
 
 interface Court {
   id: string;
@@ -46,6 +52,19 @@ interface Court {
   status: "available" | "in_use" | "maintenance";
   currentSessionUntil?: string;
   nextSlot: string;
+}
+
+interface BookingRecord {
+  id: string;
+  court_id: string;
+  booking_date: string;
+  time_slot: string;
+  player_name: string;
+  player_contact: string;
+  payment_method: string;
+  gcash_ref?: string;
+  receipt_url?: string;
+  created_at?: string;
 }
 
 const TIME_SLOTS = [
@@ -68,6 +87,8 @@ function PickleballPage() {
   const [activeTab, setActiveTab] = useState<Tab>("status");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isUserAdminRole, setIsUserAdminRole] = useState<boolean>(false);
+  const [showAdminBookingsModal, setShowAdminBookingsModal] = useState<boolean>(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Check current user role from Supabase Auth safely
   useEffect(() => {
@@ -135,6 +156,20 @@ function PickleballPage() {
     },
   });
 
+  // Fetch all bookings for Admin Modal
+  const { data: allBookings = [] } = useQuery({
+    queryKey: ["all-admin-bookings"],
+    enabled: isUserAdminRole && isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("court_bookings")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as BookingRecord[];
+    },
+  });
+
   // Booking form state
   const [selectedCourt, setSelectedCourt] = useState<string>("court-1");
   const [bookingDate, setBookingDate] = useState<string>(() => {
@@ -146,6 +181,12 @@ function PickleballPage() {
   const [playerContact, setPlayerContact] = useState<string>("");
   const [paddlesNeeded, setPaddlesNeeded] = useState<number>(0);
   const [ballsNeeded, setBallsNeeded] = useState<boolean>(false);
+  
+  // Payment states
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("counter");
+  const [gcashRef, setGcashRef] = useState<string>("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
 
   const courtObj = courts.find((c) => c.id === selectedCourt) || courts[0] || {
@@ -175,6 +216,14 @@ function PickleballPage() {
   });
   const [saving, setSaving] = useState<boolean>(false);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setReceiptFile(file);
+      setReceiptPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!playerName.trim() || !playerContact.trim()) {
@@ -185,22 +234,81 @@ function PickleballPage() {
       toast.error("That time slot is not available. Please pick a green slot.");
       return;
     }
+
+    if (paymentMethod === "gcash") {
+      if (!gcashRef.trim()) {
+        toast.error("Please enter your GCash Reference Number");
+        return;
+      }
+      if (!receiptFile) {
+        toast.error("Please upload your GCash payment screenshot");
+        return;
+      }
+    }
+
     setSaving(true);
+    let uploadedReceiptUrl = "";
+
+    // Upload receipt to Supabase Storage if GCash is selected
+    if (paymentMethod === "gcash" && receiptFile) {
+      const fileExt = receiptFile.name.split(".").pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+
+      const { error: uploadErr } = await supabase.storage
+        .from("gcash-receipts")
+        .upload(filePath, receiptFile);
+
+      if (uploadErr) {
+        setSaving(false);
+        toast.error(`Receipt upload failed: ${uploadErr.message}`);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("gcash-receipts")
+        .getPublicUrl(filePath);
+
+      uploadedReceiptUrl = publicUrlData.publicUrl;
+    }
+
+    // Call booking RPC or table insert
     const { error } = await supabase.rpc("book_court", {
-      _court: selectedCourt, _date: bookingDate, _slot: selectedSlot,
-      _name: playerName, _contact: playerContact, _paddles: paddlesNeeded, _balls: ballsNeeded, _total: totalAmount,
+      _court: selectedCourt,
+      _date: bookingDate,
+      _slot: selectedSlot,
+      _name: playerName,
+      _contact: playerContact,
+      _paddles: paddlesNeeded,
+      _balls: ballsNeeded,
+      _total: totalAmount,
     });
-    setSaving(false);
-    queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
+
     if (error) {
+      setSaving(false);
       toast.error(error.message);
       return;
     }
+
+    // Update GCash details into court_bookings
+    if (paymentMethod === "gcash") {
+      await supabase
+        .from("court_bookings")
+        .update({
+          payment_method: "gcash",
+          gcash_ref: gcashRef,
+          receipt_url: uploadedReceiptUrl,
+        })
+        .match({ court_id: selectedCourt, booking_date: bookingDate, time_slot: selectedSlot });
+    }
+
+    setSaving(false);
+    queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
     setSubmittedBooking(true);
     toast.success(`Court reserved! See you on ${bookingDate} at ${selectedSlot}.`);
   };
 
-  // Admin action: Block/Mark an open slot as Not Available
+  // Admin action: Block/Mark slot as Not Available
   const handleBlockSlot = async (slotToBlock: string) => {
     if (!isAdmin || !isUserAdminRole) return;
     try {
@@ -216,7 +324,6 @@ function PickleballPage() {
       });
 
       if (error) {
-        // Fallback direct insert if RPC is unavailable
         const { error: insertErr } = await supabase.from("court_bookings").insert({
           court_id: selectedCourt,
           booking_date: bookingDate,
@@ -235,7 +342,7 @@ function PickleballPage() {
     }
   };
 
-  // Admin action: Cancel/Free up slot (Make Available)
+  // Admin action: Cancel/Free up slot
   const handleCancelBookingSlot = async (slotToCancel: string) => {
     if (!isAdmin || !isUserAdminRole) return;
     try {
@@ -304,22 +411,35 @@ function PickleballPage() {
             </p>
           </div>
 
-          {/* Admin Toggle Switch */}
+          {/* Admin Controls Area */}
           {isUserAdminRole && (
-            <div className="rounded-2xl border bg-background/80 p-3 shadow-sm backdrop-blur">
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground">
-                <Shield className={`h-4 w-4 ${isAdmin ? "text-amber-500" : "text-muted-foreground"}`} />
-                <span>Admin Mode</span>
-                <input
-                  type="checkbox"
-                  checked={isAdmin}
-                  onChange={(e) => {
-                    setIsAdmin(e.target.checked);
-                    toast(e.target.checked ? "Admin Controls Enabled" : "Switched to Public View");
-                  }}
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-              </label>
+            <div className="flex flex-col gap-2">
+              <div className="rounded-2xl border bg-background/80 p-3 shadow-sm backdrop-blur">
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground">
+                  <Shield className={`h-4 w-4 ${isAdmin ? "text-amber-500" : "text-muted-foreground"}`} />
+                  <span>Admin Mode</span>
+                  <input
+                    type="checkbox"
+                    checked={isAdmin}
+                    onChange={(e) => {
+                      setIsAdmin(e.target.checked);
+                      toast(e.target.checked ? "Admin Controls Enabled" : "Switched to Public View");
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                </label>
+              </div>
+
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="text-xs gap-1.5"
+                  onClick={() => setShowAdminBookingsModal(true)}
+                >
+                  <Eye className="h-3.5 w-3.5" /> View Receipts & Bookings
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -522,7 +642,17 @@ function PickleballPage() {
                   <span className="font-semibold">{playerContact}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Total Due at Counter:</span>
+                  <span>Payment Method:</span>
+                  <span className="font-semibold uppercase">{paymentMethod}</span>
+                </div>
+                {paymentMethod === "gcash" && (
+                  <div className="flex justify-between">
+                    <span>GCash Ref Number:</span>
+                    <span className="font-semibold text-primary">{gcashRef}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-1.5">
+                  <span>Total Amount:</span>
                   <span className="font-semibold text-primary text-sm">₱{totalAmount}</span>
                 </div>
               </div>
@@ -728,6 +858,91 @@ function PickleballPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Step 4: Payment Method */}
+                <div className="rounded-2xl border bg-card p-6 shadow-sm">
+                  <h3 className="text-lg font-bold">4. Payment Method</h3>
+                  
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("counter")}
+                      className={`flex flex-col items-center justify-center rounded-xl border p-4 transition ${
+                        paymentMethod === "counter"
+                          ? "border-primary bg-primary/10 shadow-sm font-bold text-primary"
+                          : "border-border hover:bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      <CreditCard className="h-6 w-6 mb-1.5" />
+                      <span className="text-sm">Pay at Counter</span>
+                      <span className="text-[10px] font-normal">Cash or E-Wallet on arrival</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("gcash")}
+                      className={`flex flex-col items-center justify-center rounded-xl border p-4 transition ${
+                        paymentMethod === "gcash"
+                          ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 shadow-sm font-bold"
+                          : "border-border hover:bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      <QrCode className="h-6 w-6 mb-1.5 text-blue-600" />
+                      <span className="text-sm">GCash Online</span>
+                      <span className="text-[10px] font-normal">Instant upload & confirmation</span>
+                    </button>
+                  </div>
+
+                  {/* GCash Payment Panel */}
+                  {paymentMethod === "gcash" && (
+                    <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-4 text-xs space-y-4">
+                      <div className="rounded-xl bg-white dark:bg-card p-3 border space-y-1">
+                        <p className="font-bold text-sm text-blue-800 dark:text-blue-300">
+                          GCash Account Details
+                        </p>
+                        <p className="text-muted-foreground">Account Name: <strong>Roadside Paddles</strong></p>
+                        <p className="text-muted-foreground">GCash Number: <strong className="text-foreground">0917-123-4567</strong></p>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1">
+                          GCash Reference Number *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 1002 9832 1234"
+                          value={gcashRef}
+                          onChange={(e) => setGcashRef(e.target.value)}
+                          className="w-full rounded-xl border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1">
+                          Upload Payment Screenshot / Receipt *
+                        </label>
+                        <div className="mt-1 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-300 p-4 bg-background hover:bg-muted/50 transition cursor-pointer relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                          />
+                          <UploadCloud className="h-7 w-7 text-blue-500 mb-1" />
+                          <p className="text-xs font-semibold">Click to choose image or drop here</p>
+                          <p className="text-[10px] text-muted-foreground">PNG, JPG, WEBP up to 5MB</p>
+                        </div>
+
+                        {receiptPreview && (
+                          <div className="mt-3 relative w-28 h-28 rounded-lg overflow-hidden border">
+                            <img src={receiptPreview} alt="Receipt preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Right Column: Order Summary */}
@@ -770,16 +985,90 @@ function PickleballPage() {
                 </div>
 
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Pay at the counter on arrival — cash or e-wallet.
+                  {paymentMethod === "gcash" ? "GCash receipt will be verified by counter staff." : "Pay at the counter on arrival — cash or e-wallet."}
                 </p>
 
                 <Button type="submit" className="mt-5 w-full" disabled={saving}>
-                  Confirm Reservation
+                  {saving ? "Processing..." : "Confirm Reservation"}
                 </Button>
               </div>
             </form>
           )}
         </section>
+      )}
+
+      {/* ADMIN MODAL: View Bookings & GCash Receipts */}
+      {showAdminBookingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-card p-6 shadow-2xl border">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="text-xl font-bold">Admin: All Court Bookings</h3>
+                <p className="text-xs text-muted-foreground">Review player contact info, GCash reference numbers, and payment screenshots.</p>
+              </div>
+              <Button size="icon" variant="ghost" onClick={() => setShowAdminBookingsModal(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {allBookings.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">No bookings recorded yet.</p>
+              ) : (
+                allBookings.map((b) => (
+                  <div key={b.id || `${b.court_id}-${b.booking_date}-${b.time_slot}`} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border bg-muted/30 p-4 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">{b.player_name}</span>
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          {b.court_id}
+                        </span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase font-semibold">
+                          {b.payment_method || "counter"}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground">Date: {b.booking_date} | Slot: {b.time_slot}</p>
+                      <p className="text-muted-foreground">Contact: <strong>{b.player_contact}</strong></p>
+                      {b.gcash_ref && (
+                        <p className="font-semibold text-blue-600 dark:text-blue-400">
+                          GCash Ref: {b.gcash_ref}
+                        </p>
+                      )}
+                    </div>
+
+                    {b.receipt_url && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage(b.receipt_url!)}
+                        className="flex items-center gap-1.5 rounded-xl border bg-background px-3 py-2 font-semibold hover:bg-muted transition text-xs"
+                      >
+                        <Eye className="h-4 w-4 text-primary" />
+                        View Receipt
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN IMAGE PREVIEW MODAL */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="relative max-w-md w-full rounded-2xl bg-card p-3 border">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="absolute top-2 right-2 rounded-full"
+              onClick={() => setPreviewImage(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <img src={previewImage} alt="Payment Receipt" className="w-full h-auto max-h-[75vh] object-contain rounded-xl" />
+          </div>
+        </div>
       )}
     </main>
   );
