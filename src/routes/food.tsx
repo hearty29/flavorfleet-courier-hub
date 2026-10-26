@@ -42,6 +42,7 @@ function AddOnModal({
 
   if (!item) return null;
 
+  // Calculates additional cost (Rice Price + Automatic Takeout Bowl ₱20)
   const riceFee = selectedRice ? selectedRice.ricePrice + selectedRice.bowlPrice : 0;
   const totalPrice = item.price + riceFee;
 
@@ -59,21 +60,18 @@ function AddOnModal({
         {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
         <p className="text-lg font-bold text-primary">{peso(item.price)}</p>
 
-        {/* Rice & Takeout Bowl Add-On Options */}
+        {/* Rice & Automatic Takeout Bowl Add-On Options */}
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Rice Upgrade & Takeout Bowl
+              Add Rice (Includes Takeout Bowl +₱20)
             </h4>
-            <span className="text-[11px] font-semibold text-primary">
-              Rice (+₱25) + Bowl (+₱30) = +₱55
-            </span>
           </div>
 
           <div className="space-y-2">
             {RICE_OPTIONS.map((rice) => {
               const isSelected = selectedRice?.id === rice.id;
-              const totalAddonPrice = rice.ricePrice + rice.bowlPrice; // ₱55
+              const totalAddonPrice = rice.ricePrice + rice.bowlPrice; 
               return (
                 <button
                   key={rice.id}
@@ -93,9 +91,11 @@ function AddOnModal({
                     >
                       {isSelected && <Check className="h-3.5 w-3.5" />}
                     </div>
-                    <span>{rice.name} + Takeout Bowl</span>
+                    <span>
+                      {rice.name} ({peso(rice.ricePrice)}) + Bowl ({peso(rice.bowlPrice)})
+                    </span>
                   </div>
-                  <span className="font-bold">+₱{totalAddonPrice}</span>
+                  <span className="font-bold">+{peso(totalAddonPrice)}</span>
                 </button>
               );
             })}
@@ -134,7 +134,6 @@ function FoodMenuPage() {
   });
 
   const handleAddItem = (item: MenuItem) => {
-    // If the category is Mains or Rice Meals, open the Rice & Takeout Bowl selection modal
     const isRiceEligible = item.category?.toLowerCase().includes("main") || item.allow_rice_addon;
     if (isRiceEligible) {
       setSelectedItemForModal(item);
