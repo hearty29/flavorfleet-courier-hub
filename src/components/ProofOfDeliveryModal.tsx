@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Camera, CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client"; // Fixed import path
 
 interface ProofOfDeliveryProps {
   orderId: string;
@@ -43,13 +43,12 @@ export function ProofOfDeliveryModal({ orderId, onSuccess, onClose }: ProofOfDel
 
       const photoUrl = publicUrlData.publicUrl;
 
-      // 3. Update the cafe_orders table with status and the photo URL
+      // 3. Update the correct "orders" table with status and the photo URL
       const { error: updateError } = await supabase
-        .from("cafe_orders")
+        .from("orders") // Fixed table name to match rider.tsx
         .update({
           status: "delivered",
           proof_of_delivery_url: photoUrl,
-          delivered_at: new Date().toISOString(),
         })
         .eq("id", orderId);
 
@@ -100,7 +99,6 @@ export function ProofOfDeliveryModal({ orderId, onSuccess, onClose }: ProofOfDel
               </div>
               <span className="text-sm font-semibold">Take or Upload Photo</span>
               <span className="text-xs text-muted-foreground">Opens camera on mobile devices</span>
-              {/* capture="environment" automatically forces the phone's back camera */}
               <input
                 type="file"
                 accept="image/*"
