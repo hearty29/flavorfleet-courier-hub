@@ -58,15 +58,19 @@ function Checkout() {
     const name = String(f.get("name") || "");
     const notesInput = String(f.get("notes") || "");
 
-    // Only pass valid menu item UUIDs to the backend RPC function
-    const orderItems = items.map((i) => ({
-      id: i.id,
-      quantity: i.quantity,
-    }));
+    // If an add-on is selected, we distribute the add-on fee onto the item prices 
+    // so the database's automated total calculation matches your frontend total!
+    const orderItems = items.map((i) => {
+      const adjustedPrice = selectedRice ? i.price + riceAddonFee : i.price;
+      return {
+        id: i.id,
+        quantity: i.quantity,
+        price: adjustedPrice, // Passes the updated total price to the backend
+      };
+    });
 
-    // Attach the rice add-on and its price cleanly into the notes so the rider and kitchen see it accurately
     const addonNotesText = selectedRice
-      ? ` [ADD-ON: ${selectedRice.name} (+₱${selectedRice.ricePrice}) + Takeout Bowl (+₱${selectedRice.bowlPrice}) = Total Added: +₱${selectedRice.ricePrice + selectedRice.bowlPrice}]`
+      ? ` [ADD-ON: ${selectedRice.name} (+₱${selectedRice.ricePrice}) + Takeout Bowl (+₱${selectedRice.bowlPrice}) = +₱${riceAddonFee}]`
       : "";
 
     const finalNotes = notesInput ? notesInput + addonNotesText : addonNotesText.trim();
