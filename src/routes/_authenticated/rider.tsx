@@ -65,7 +65,7 @@ function Rider() {
     enabled: isRider,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cafe_orders")
+        .from("orders")
         .select("*, order_items(*)")
         .in("status", ["ready", "picked_up", "delivered"])
         .order("created_at", { ascending: false })
@@ -81,7 +81,7 @@ function Rider() {
       .channel(`rider-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "cafe_orders" },
+        { event: "*", schema: "public", table: "orders" },
         (payload) => {
           const nextOrder = payload.new as {
             status?: string;
