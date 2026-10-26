@@ -16,7 +16,7 @@ export default function CheckoutPage() {
   // Selected Rice Add-on State
   const [selectedRice, setSelectedRice] = useState<RiceAddon | null>(null);
 
-  // Calculate Add-on Fees (Rice Price + Auto ₱20 Bowl)
+  // Calculate Add-on Fees (Rice Price + Auto Takeout Bowl)
   const riceAddonFee = selectedRice ? selectedRice.ricePrice + selectedRice.bowlPrice : 0;
   
   // Dynamic Total Calculation
@@ -138,13 +138,13 @@ export default function CheckoutPage() {
           {/* ========================================================= */}
           <div className="pt-4 border-t border-slate-200/60">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-              Add-ons (Includes ₱20 Takeout Bowl)
+              Add-ons (Includes Takeout Bowl)
             </label>
 
             <div className="space-y-2">
               {RICE_OPTIONS.map((rice) => {
                 const isSelected = selectedRice?.id === rice.id;
-                const totalAddonPrice = rice.ricePrice + rice.bowlPrice; // ₱20+₱20 (Garlic) or ₱30+₱20 (Yangchow)
+                const totalAddonPrice = rice.ricePrice + rice.bowlPrice; // Garlic: ₱20+₱20 | Yangchow: ₱30+₱20
 
                 return (
                   <button
