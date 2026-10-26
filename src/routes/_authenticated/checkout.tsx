@@ -56,14 +56,31 @@ function Checkout() {
     const address = String(f.get("address") || "");
     const phone = String(f.get("phone") || "");
     const name = String(f.get("name") || "");
-
     const notesInput = String(f.get("notes") || "");
+
+    // Prepare order items: If a rice add-on is chosen, we append it as a separate line item or tag it cleanly
+    const orderItems = items.map((i) => ({
+      id: i.id,
+      quantity: i.quantity,
+      name: i.name,
+      price: i.price,
+    }));
+
+    if (selectedRice) {
+      orderItems.push({
+        id: selectedRice.id,
+        quantity: 1,
+        name: `${selectedRice.name} + Takeout Bowl`,
+        price: selectedRice.ricePrice + selectedRice.bowlPrice,
+      });
+    }
+
     const addonDetails = selectedRice
       ? ` [Add-on: ${selectedRice.name} (+₱${selectedRice.ricePrice}) + Takeout Bowl (+₱${selectedRice.bowlPrice})]`
       : "";
 
     const { data, error } = await supabase.rpc("place_order", {
-      _items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
+      _items: orderItems,
       _address: address,
       _phone: phone,
       _name: name,
@@ -133,6 +150,23 @@ function Checkout() {
               </Button>
             </li>
           ))}
+
+          {/* Show selected rice add-on directly in the cart preview list */}
+          {selectedRice && (
+            <li className="flex items-center justify-between p-4 bg-muted/30">
+              <div>
+                <p className="font-medium">{selectedRice.name} + Takeout Bowl</p>
+                <p className="text-sm text-muted-foreground">{peso(selectedRice.ricePrice + selectedRice.bowlPrice)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRice(null)}
+                className="text-xs font-semibold text-red-600 hover:underline"
+              >
+                Remove
+              </button>
+            </li>
+          )}
         </ul>
       </section>
 
