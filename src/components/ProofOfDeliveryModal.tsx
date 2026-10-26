@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Camera, CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client"; // Fixed import path
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProofOfDeliveryProps {
   orderId: string;
@@ -28,24 +28,24 @@ export function ProofOfDeliveryModal({ orderId, onSuccess, onClose }: ProofOfDel
     try {
       setUploading(true);
 
-      // 1. Upload image to Supabase Storage bucket ('delivery-proofs')
+      // 1. Upload image to Supabase Storage bucket ('DELIVERY-PROOFS')
       const fileName = `pod_${orderId}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage
-        .from("delivery-proofs")
+        .from("DELIVERY-PROOFS")
         .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
       // 2. Get public URL of the uploaded image
       const { data: publicUrlData } = supabase.storage
-        .from("delivery-proofs")
+        .from("DELIVERY-PROOFS")
         .getPublicUrl(fileName);
 
       const photoUrl = publicUrlData.publicUrl;
 
-      // 3. Update the correct "orders" table with status and the photo URL
+      // 3. Update the orders table with status and the photo URL
       const { error: updateError } = await supabase
-        .from("orders") // Fixed table name to match rider.tsx
+        .from("orders")
         .update({
           status: "delivered",
           proof_of_delivery_url: photoUrl,
@@ -56,9 +56,9 @@ export function ProofOfDeliveryModal({ orderId, onSuccess, onClose }: ProofOfDel
 
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading proof of delivery:", error);
-      alert("Failed to upload proof of delivery. Please try again.");
+      alert(`Upload Error: ${error?.message || JSON.stringify(error)}`);
     } finally {
       setUploading(false);
     }
