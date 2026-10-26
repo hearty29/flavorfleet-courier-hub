@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
 import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ShoppingBag, ChefHat, Package, Bike, Check } from "lucide-react";
@@ -92,7 +91,7 @@ function Orders() {
     },
   });
 
-  // Real-time subscription to instantly update the timeline when status changes
+  // Real-time subscription to instantly update when status or rider changes
   useEffect(() => {
     const ch = supabase
       .channel("customer-orders-realtime")
@@ -127,6 +126,19 @@ function Orders() {
                 </div>
                 <StatusBadge status={o.status} />
               </div>
+
+              {/* Rider Info Display */}
+              {o.rider_name && (
+                <div className="mt-4 flex items-center gap-2.5 rounded-xl bg-muted/50 p-3 text-sm">
+                  <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary">
+                    <Bike className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Assigned Delivery Rider</p>
+                    <p className="font-semibold">{o.rider_name}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="my-6">
                 <OrderTracker status={o.status} />
