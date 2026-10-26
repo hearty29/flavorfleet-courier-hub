@@ -156,7 +156,7 @@ function AboutPage() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Contact Me
                 </p>
-                <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
                   <a
                     href="https://www.facebook.com/share/1EeSoXM1rS/"
                     target="_blank"
