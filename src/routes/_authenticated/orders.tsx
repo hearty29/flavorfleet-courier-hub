@@ -78,18 +78,14 @@ function OrderTracker({ status }: { status: string }) {
 }
 
 function Orders() {
-  const { session } = useAuth();
   const qc = useQueryClient();
-  const userId = session?.user.id;
 
   const { data: orders = [] } = useQuery({
-    queryKey: ["user-orders", userId],
-    enabled: !!userId,
+    queryKey: ["user-orders"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
         .select("*, order_items(*)")
-        .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
