@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ShoppingBag, LogOut, Shield, Bike, Receipt, Trophy } from "lucide-react";
+import { ShoppingBag, LogOut, Shield, Bike, Receipt, Trophy, Info } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +25,14 @@ export function SiteHeader() {
         <Link to="/" className="mr-auto font-display text-2xl font-extrabold text-primary">
           Roadside<span className="text-foreground"> Paddles</span>
         </Link>
+
+        {/* About Us Tab */}
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/about">
+            <Info className="h-4 w-4" />
+            <span className="ml-1.5 font-medium">About</span>
+          </Link>
+        </Button>
 
         {/* Pickleball Tab */}
         <Button asChild variant="ghost" size="sm">
