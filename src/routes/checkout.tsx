@@ -1,217 +1,180 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check } from "lucide-react";
-import { useCart, RICE_OPTIONS, type RiceAddon, peso, DELIVERY_FEE } from "@/lib/cart";
+import { Minus, Plus, Banknote, CreditCard } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { useCart, peso, DELIVERY_FEE } from "@/lib/cart";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
-export default function CheckoutPage() {
-  const { items, subtotal } = useCart();
+export const Route = createFileRoute("/_authenticated/checkout")({
+  head: () => ({
+    meta: [
+      { title: "Checkout — Roadside Paddles" },
+      { name: "description", content: "Review your cart and place your order." },
+      { property: "og:title", content: "Checkout — Roadside Paddles" },
+      { property: "og:description", content: "Review your cart and place your order." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: Checkout,
+});
 
-  // Delivery Form State
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
+function Checkout() {
+  const { items, setQty, subtotal, clear } = useCart();
+  const { session } = useAuth();
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
 
-  // Selected Rice Add-on State
-  const [selectedRice, setSelectedRice] = useState<RiceAddon | null>(null);
+  const { data: profile } = useQuery({
+    queryKey: ["profile", session?.user.id],
+    enabled: !!session,
+    queryFn: async () => (await supabase.from("profiles").select("*").eq("id", session!.user.id).maybeSingle()).data,
+  });
 
-  // Calculate Add-on Fees (Rice Price + Auto Takeout Bowl)
-  const riceAddonFee = selectedRice ? selectedRice.ricePrice + selectedRice.bowlPrice : 0;
-  
-  // Dynamic Total Calculation
-  const finalSubtotal = subtotal + riceAddonFee;
-  const grandTotal = finalSubtotal + DELIVERY_FEE;
-
-  const handleToggleRice = (rice: RiceAddon) => {
-    setSelectedRice((prev) => (prev?.id === rice.id ? null : rice));
-  };
-
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const orderData = {
-      fullName,
-      phone,
-      address,
-      notes,
-      paymentMethod,
-      items,
-      selectedAddon: selectedRice
-        ? `${selectedRice.name} (+${peso(selectedRice.ricePrice)}) + Takeout Bowl (+${peso(selectedRice.bowlPrice)})`
-        : "None",
-      grandTotal,
-    };
-    console.log("Order Placed:", orderData);
-    alert("Order submitted successfully!");
+    if (!items.length) {
+      toast.error("Your cart is empty");
+      return;
+    }
+    const f = new FormData(e.currentTarget);
+    setBusy(true);
+    const address = String(f.get("address") || "");
+    const phone = String(f.get("phone") || "");
+    const name = String(f.get("name") || "");
+
+    const { data, error } = await supabase.rpc("place_order", {
+      _items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
+      _address: address,
+      _phone: phone,
+      _name: name,
+      _notes: String(f.get("notes") || ""),
+      _payment: "cod",
+    });
+
+    if (!error && session) {
+      await supabase.from("profiles").update({ address, phone, full_name: name }).eq("id", session.user.id);
+    }
+
+    setBusy(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    clear();
+    toast.success("Order placed successfully!");
+    void data;
+    navigate({ to: "/orders" });
   };
+
+  if (!items.length) {
+    return (
+      <main className="mx-auto max-w-md px-4 py-16 text-center">
+        <h1 className="text-3xl font-bold">Your cart is empty</h1>
+        <p className="mt-2 text-muted-foreground">Add some dishes from the menu to get started.</p>
+        <Button asChild className="mt-6">
+          <Link to="/">Browse menu</Link>
+        </Button>
+      </main>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-xl p-4 font-sans text-slate-800">
-      {/* Delivery details container */}
-      <div className="rounded-3xl border border-slate-100 bg-[#FAF7F2] p-6 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-900">Delivery details</h2>
-
-        <form onSubmit={handlePlaceOrder} className="mt-4 space-y-4">
-          {/* Full Name */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600">Full Name</label>
-            <input
-              type="text"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-500"
-            />
-          </div>
-
-          {/* Phone Number */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600">Phone Number</label>
-            <input
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-500"
-            />
-          </div>
-
-          {/* Delivery Address */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600">Delivery Address</label>
-            <textarea
-              rows={3}
-              required
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-500 resize-none"
-            />
-          </div>
-
-          {/* Notes for rider */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600">Notes for rider (optional)</label>
-            <input
-              type="text"
-              placeholder="Landmark, gate color, building name..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-red-500"
-            />
-          </div>
-
-          {/* Payment Method */}
-          <div className="pt-2">
-            <label className="block text-xs font-semibold text-slate-600 mb-2">Payment Method</label>
-            
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("cod")}
-                className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-sm font-semibold transition ${
-                  paymentMethod === "cod"
-                    ? "border-red-600 bg-white text-slate-900"
-                    : "border-slate-200 bg-white text-slate-500"
-                }`}
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600">
-                  💵
-                </div>
-                Cash on delivery
-              </button>
-
-              <button
-                type="button"
-                disabled
-                className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white/60 p-3 text-sm font-medium text-slate-400 cursor-not-allowed"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                  💳
-                </div>
-                Card / online — coming soon
-              </button>
-            </div>
-          </div>
-
-          {/* ========================================================= */}
-          {/* ADD-ONS SECTION (POSITIONED DIRECTLY UNDER PAYMENT METHOD)  */}
-          {/* ========================================================= */}
-          <div className="pt-4 border-t border-slate-200/60">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-              Add-ons (Includes Takeout Bowl)
-            </label>
-
-            <div className="space-y-2">
-              {RICE_OPTIONS.map((rice) => {
-                const isSelected = selectedRice?.id === rice.id;
-                const totalAddonPrice = rice.ricePrice + rice.bowlPrice; // Garlic: ₱20+₱20 | Yangchow: ₱30+₱20
-
-                return (
-                  <button
-                    key={rice.id}
-                    type="button"
-                    onClick={() => handleToggleRice(rice)}
-                    className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-sm transition ${
-                      isSelected
-                        ? "border-red-600 bg-white font-bold text-slate-900 shadow-sm"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-5 w-5 items-center justify-center rounded-md border transition ${
-                          isSelected
-                            ? "border-red-600 bg-red-600 text-white"
-                            : "border-slate-300 bg-white"
-                        }`}
-                      >
-                        {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                      </div>
-                      <div className="text-left">
-                        <p>{rice.name}</p>
-                        <p className="text-[11px] font-normal text-slate-400">
-                          {peso(rice.ricePrice)} rice + {peso(rice.bowlPrice)} takeout bowl
-                        </p>
-                      </div>
-                    </div>
-                    <span className="font-extrabold text-slate-900">+{peso(totalAddonPrice)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Pricing Summary */}
-          <div className="pt-4 border-t border-slate-200/80 space-y-1.5 text-sm">
-            <div className="flex justify-between text-slate-600">
-              <span>Subtotal</span>
-              <span className="font-semibold text-slate-800">{peso(finalSubtotal)}</span>
-            </div>
-            {selectedRice && (
-              <div className="flex justify-between text-xs text-red-600">
-                <span>Add-on ({selectedRice.name} + Bowl)</span>
-                <span>+{peso(riceAddonFee)}</span>
+    <main className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[1fr_380px]">
+      <section>
+        <h1 className="text-3xl font-bold">Your order</h1>
+        <ul className="mt-4 divide-y rounded-2xl border bg-card">
+          {items.map((i) => (
+            <li key={i.id} className="flex items-center gap-3 p-4">
+              {i.image_url && <img src={i.image_url} alt="" className="h-14 w-14 rounded-lg object-cover" />}
+              <div className="flex-1">
+                <p className="font-medium">{i.name}</p>
+                <p className="text-sm text-muted-foreground">{peso(i.price)}</p>
               </div>
-            )}
-            <div className="flex justify-between text-slate-600">
-              <span>Delivery fee</span>
-              <span className="font-semibold text-slate-800">{peso(DELIVERY_FEE)}</span>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                onClick={() => setQty(i.id, i.quantity - 1)}
+                aria-label="Decrease"
+              >
+                <Minus />
+              </Button>
+              <span className="w-6 text-center font-medium">{i.quantity}</span>
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                onClick={() => setQty(i.id, i.quantity + 1)}
+                aria-label="Increase"
+              >
+                <Plus />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-card p-5" key={profile?.id ?? "profile-form"}>
+        <h2 className="text-xl font-bold">Delivery details</h2>
+        <div>
+          <Label htmlFor="n">Full Name</Label>
+          <Input id="n" name="name" defaultValue={profile?.full_name ?? ""} required />
+        </div>
+        <div>
+          <Label htmlFor="ph">Phone Number</Label>
+          <Input id="ph" name="phone" defaultValue={profile?.phone ?? ""} required />
+        </div>
+        <div>
+          <Label htmlFor="ad">Delivery Address</Label>
+          <Textarea id="ad" name="address" defaultValue={profile?.address ?? ""} required />
+        </div>
+        <div>
+          <Label htmlFor="no">Notes for rider (optional)</Label>
+          <Input id="no" name="notes" placeholder="Landmark, gate color, building name..." />
+        </div>
+
+        <div>
+          <Label>Payment Method</Label>
+          <div className="mt-2 grid gap-2">
+            <div className="flex items-center gap-2 rounded-lg border-2 border-primary p-3">
+              <Banknote className="text-primary" />
+              <span className="font-medium">Cash on delivery</span>
             </div>
-            <div className="flex justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-200">
-              <span>Total</span>
-              <span>{peso(grandTotal)}</span>
+            <div className="flex items-center gap-2 rounded-lg border p-3 text-muted-foreground">
+              <CreditCard />
+              <span>Card / online — coming soon</span>
             </div>
           </div>
+        </div>
 
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            className="w-full rounded-2xl bg-[#D33020] py-6 text-base font-bold text-white hover:bg-[#b82719] transition"
-          >
-            Place order
-          </Button>
-        </form>
-      </div>
-    </div>
+        <div className="space-y-1 border-t pt-4 text-sm">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>{peso(subtotal)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Delivery fee</span>
+            <span>{peso(DELIVERY_FEE)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-bold">
+            <span>Total</span>
+            <span>{peso(subtotal + DELIVERY_FEE)}</span>
+          </div>
+        </div>
+
+        <Button className="w-full" size="lg" disabled={busy}>
+          {busy ? "Placing order..." : "Place order"}
+        </Button>
+      </form>
+    </main>
   );
 }
