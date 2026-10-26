@@ -523,7 +523,7 @@ function PickleballPage() {
                       <span className="font-semibold text-foreground">₱{court.rateDay}/hr</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Night Rate (5pm-10pm):</span>
+                      <span className="text-muted-foreground">Night Rate (5pm-12pm):</span>
                       <span className="font-semibold text-foreground">₱{court.rateNight}/hr</span>
                     </div>
                   </div>
