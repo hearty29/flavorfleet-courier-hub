@@ -29,6 +29,13 @@
       "when": 1792916353327,
       "tag": "0003_court_bookings",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792977230737,
+      "tag": "0004_resolve_order_rider_from_application",
+      "breakpoints": true
     }
   ]
 }
