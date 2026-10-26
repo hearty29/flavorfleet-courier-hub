@@ -123,7 +123,10 @@ function AboutPage() {
           </h1>
           <p className="mt-4 text-xl font-medium text-primary md:text-2xl">
             Software Developer
-            <span className="text-muted-foreground"> · Product &amp; Backend</span>
+            <span className="text-muted-foreground">
+              {" "}
+              · Games, Web &amp; Backend
+            </span>
           </p>
           <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
             Roadside Paddles is a homegrown project — one developer, one
