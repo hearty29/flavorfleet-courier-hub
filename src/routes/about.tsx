@@ -13,6 +13,7 @@ import {
   Trophy,
   UtensilsCrossed,
   Wrench,
+  Facebook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -141,12 +142,24 @@ function AboutPage() {
         {/* Profile Card */}
         <div className="relative">
           <div className="relative overflow-hidden rounded-[2rem] border bg-card p-8 shadow-warm">
-            <div className="relative h-40 w-40 overflow-hidden rounded-full border-2 border-border shadow-md">
-              <img
-                src="/images/jessie-cabrera.jpg"
-                alt="Jessie Cabrera"
-                className="h-full w-full object-cover"
-              />
+            <div className="flex items-center gap-4">
+              <div className="relative h-40 w-40 shrink-0 overflow-hidden rounded-full border-2 border-border shadow-md">
+                <img
+                  src="/images/jessie-cabrera.jpg"
+                  alt="Jessie Cabrera"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              <a
+                href="https://www.facebook.com/share/1EeSoXM1rS/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="grid h-12 w-12 place-items-center rounded-full bg-blue-600 text-white shadow-md transition-transform hover:scale-110 hover:bg-blue-700"
+                aria-label="Jessie Cabrera's Facebook Profile"
+              >
+                <Facebook className="h-6 w-6 fill-current" />
+              </a>
             </div>
 
             <p className="mt-6 font-display text-2xl font-bold text-foreground">
