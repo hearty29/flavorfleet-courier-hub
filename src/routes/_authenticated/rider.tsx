@@ -234,7 +234,7 @@ function Rider() {
                     )
                   }
                 >
-                  Picked up
+                  Picked up Order
                 </Button>
               )}
               {o.status === "picked_up" && (
