@@ -52,7 +52,7 @@ function OrderTracker({ status }: { status: string }) {
               <div
                 className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-10 sm:w-10 ${
                   isCurrent
-                    ? "border-primary bg-primary text-primary-foreground shadow-md ring-4 ring-primary/20"
+                    ? "border-primary bg-primary text-primary-foreground shadow-md ring-4 ring-primary/40 animate-pulse"
                     : isDone
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-muted-foreground/30 bg-background text-muted-foreground"
