@@ -28,17 +28,17 @@ export function ProofOfDeliveryModal({ orderId, onSuccess, onClose }: ProofOfDel
     try {
       setUploading(true);
 
-      // 1. Upload image to Supabase Storage bucket ('DELIVERY-PROOFS')
+      // 1. Upload image to Supabase Storage bucket ('delivery-proofs')
       const fileName = `pod_${orderId}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage
-        .from("DELIVERY-PROOFS")
+        .from("delivery-proofs") // Changed to lowercase with hyphen
         .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
       // 2. Get public URL of the uploaded image
       const { data: publicUrlData } = supabase.storage
-        .from("DELIVERY-PROOFS")
+        .from("delivery-proofs")
         .getPublicUrl(fileName);
 
       const photoUrl = publicUrlData.publicUrl;
