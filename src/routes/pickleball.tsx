@@ -103,7 +103,7 @@ function PickleballPage() {
       const user = session.user;
       const userMeta = user.user_metadata as Record<string, any> | undefined;
       const appMeta = user.app_metadata as Record<string, any> | undefined;
-      const role = appMeta?.role || userMeta?.role;
+      const role = appMeta?.["role"] || userMeta?.["role"];
 
       if (role === "admin") {
         setIsUserAdminRole(true);
@@ -346,20 +346,16 @@ function PickleballPage() {
   const handleCancelBookingSlot = async (slotToCancel: string) => {
     if (!isAdmin || !isUserAdminRole) return;
     try {
-      const { error } = await supabase.rpc("cancel_court_booking", {
-        _court: selectedCourt,
-        _date: bookingDate,
-        _slot: slotToCancel,
-      });
+      const { error: deleteErr } = await supabase
+        .from("court_bookings")
+        .delete()
+        .match({
+          court_id: selectedCourt,
+          booking_date: bookingDate,
+          time_slot: slotToCancel,
+        });
 
-      if (error) {
-        const { error: deleteErr } = await supabase
-          .from("court_bookings")
-          .delete()
-          .match({ court_id: selectedCourt, booking_date: bookingDate, time_slot: slotToCancel });
-        
-        if (deleteErr) throw deleteErr;
-      }
+      if (deleteErr) throw deleteErr;
 
       toast.success(`Slot (${slotToCancel}) is now marked as Available!`);
       await queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
