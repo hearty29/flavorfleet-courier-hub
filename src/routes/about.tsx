@@ -1,12 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Bike,
+  Briefcase,
   Code2,
+  Database,
+  Gamepad2,
+  Globe2,
   LayoutGrid,
   MapPinned,
+  Smartphone,
   Sparkles,
   Trophy,
   UtensilsCrossed,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -68,6 +74,39 @@ const CRAFT = [
   },
 ];
 
+
+const EXPERIENCE = [
+  {
+    icon: Gamepad2,
+    tag: "Games",
+    role: "Game Developer",
+    body: "Builds playable experiences — game logic, levels, controls, and the feel of the thing once it's in your hands.",
+  },
+  {
+    icon: Globe2,
+    tag: "Web",
+    role: "Website Developer",
+    body: "Builds sites and web apps end to end: the layout that holds up on any screen, plus the forms, dashboards, and pages behind them.",
+  },
+  {
+    icon: Database,
+    tag: "Data",
+    role: "Backend & Database Developer",
+    body: "Designs the data model and the rules on top of it — orders, roles, and payments that can't be quietly edited from the browser.",
+  },
+  {
+    icon: Smartphone,
+    tag: "Product",
+    role: "App & Interface Developer",
+    body: "Turns a feature list into screens a person can actually use — one-handed, in bright sun, with a thumb.",
+  },
+  {
+    icon: Wrench,
+    tag: "And more",
+    role: "Freelance & Project Work",
+    body: "Fixes, integrations, and one-off builds — whatever a small business needs shipped this week, figured out as it goes.",
+  },
+];
 
 function AboutPage() {
   return (
