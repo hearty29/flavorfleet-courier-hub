@@ -20,36 +20,96 @@ export type Database = {
           booking_date: string
           court_id: string
           created_at: string
+          duration_minutes: number | null
+          gcash_ref: string | null
           id: string
           paddles: number
+          payment_method: string | null
           player_contact: string
           player_name: string
+          receipt_url: string | null
+          status: string | null
           time_slot: string
+          timer_started_at: string | null
           total: number
+          total_amount: number | null
         }
         Insert: {
           balls?: boolean
           booking_date: string
           court_id: string
           created_at?: string
+          duration_minutes?: number | null
+          gcash_ref?: string | null
           id?: string
           paddles?: number
+          payment_method?: string | null
           player_contact: string
           player_name: string
+          receipt_url?: string | null
+          status?: string | null
           time_slot: string
+          timer_started_at?: string | null
           total?: number
+          total_amount?: number | null
         }
         Update: {
           balls?: boolean
           booking_date?: string
           court_id?: string
           created_at?: string
+          duration_minutes?: number | null
+          gcash_ref?: string | null
           id?: string
           paddles?: number
+          payment_method?: string | null
           player_contact?: string
           player_name?: string
+          receipt_url?: string | null
+          status?: string | null
           time_slot?: string
+          timer_started_at?: string | null
           total?: number
+          total_amount?: number | null
+        }
+        Relationships: []
+      }
+      courts: {
+        Row: {
+          current_session_until: string | null
+          id: string
+          live_stream_url: string | null
+          name: string
+          next_slot: string | null
+          rate_day: number | null
+          rate_night: number | null
+          status: string | null
+          surface: string | null
+          type: string | null
+        }
+        Insert: {
+          current_session_until?: string | null
+          id: string
+          live_stream_url?: string | null
+          name: string
+          next_slot?: string | null
+          rate_day?: number | null
+          rate_night?: number | null
+          status?: string | null
+          surface?: string | null
+          type?: string | null
+        }
+        Update: {
+          current_session_until?: string | null
+          id?: string
+          live_stream_url?: string | null
+          name?: string
+          next_slot?: string | null
+          rate_day?: number | null
+          rate_night?: number | null
+          status?: string | null
+          surface?: string | null
+          type?: string | null
         }
         Relationships: []
       }
