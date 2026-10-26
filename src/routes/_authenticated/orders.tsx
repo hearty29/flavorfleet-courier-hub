@@ -1,110 +1,78 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { toast } from "sonner";
-import { Check, ChefHat, Bike, PackageCheck, ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Button } from "@/components/ui/button";
-import { loadAssignedRider } from "@/lib/order-rider";
+import { ShoppingBag, ChefHat, Package, Bike, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/orders")({
   head: () => ({
     meta: [
-      { title: "My orders — Roadside Paddles" },
-      { name: "description", content: "Track your food deliveries." },
-      { property: "og:title", content: "My orders — Roadside Paddles" },
-      { property: "og:description", content: "Track your food deliveries." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { title: "My Orders — Roadside Cafe" },
+      { name: "description", content: "Track your food orders in real-time." },
     ],
   }),
   component: Orders,
 });
 
-const TRACKING_STEPS = [
-  { id: "pending", label: "Placed", desc: "Order received", icon: ShoppingBag },
-  { id: "preparing", label: "Preparing", desc: "In the kitchen", icon: ChefHat },
-  { id: "ready", label: "Ready", desc: "Waiting for pickup", icon: PackageCheck },
-  { id: "picked_up", label: "On the Way", desc: "Rider is heading to you", icon: Bike },
-  { id: "delivered", label: "Delivered", desc: "Enjoy your meal!", icon: Check },
-];
-
 function OrderTracker({ status }: { status: string }) {
-  if (status === "cancelled") return null;
+  const steps = [
+    { key: "pending", label: "Placed", icon: ShoppingBag },
+    { key: "preparing", label: "Preparing", icon: ChefHat },
+    { key: "ready", label: "Ready", icon: Package },
+    { key: "picked_up", label: "On the Way", icon: Bike },
+    { key: "delivered", label: "Delivered", icon: Check },
+  ];
 
-  const currentIdx = TRACKING_STEPS.findIndex((s) => s.id === status);
-  const progressPercent =
-    currentIdx <= 0 ? 0 : (currentIdx / (TRACKING_STEPS.length - 1)) * 100;
+  const getStepState = (stepKey: string) => {
+    const orderHierarchy = ["pending", "preparing", "ready", "picked_up", "delivered"];
+    const currentIndex = orderHierarchy.indexOf(status);
+    const stepIndex = orderHierarchy.indexOf(stepKey);
+
+    if (stepIndex < currentIndex) return "completed";
+    if (stepIndex === currentIndex) return "active";
+    return "upcoming";
+  };
 
   return (
-    <div className="relative my-6 px-1 sm:px-3">
-      <div className="flex items-center justify-between">
-        {TRACKING_STEPS.map((step, idx) => {
-          const Icon = step.icon;
-          const isDone = idx < currentIdx;
-          const isCurrent = idx === currentIdx;
+    <div className="flex items-center justify-between w-full py-4 relative">
+      {steps.map((step) => {
+        const state = getStepState(step.key);
+        const Icon = step.icon;
 
-          return (
-            <div key={step.id} className="relative z-10 flex flex-col items-center text-center">
+        return (
+          <div key={step.key} className="flex flex-col items-center z-10 relative">
+            <div className="relative">
+              {/* Flashing Ping Ring for Active Step */}
+              {state === "active" && (
+                <span className="absolute -inset-1 rounded-full bg-red-500 opacity-75 animate-ping" />
+              )}
+
+              {/* Main Step Icon Circle */}
               <div
-                className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-300 sm:h-10 sm:w-10 ${
-                  isCurrent
-                    ? "border-primary bg-primary text-primary-foreground shadow-md ring-4 ring-primary/20"
-                    : isDone
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted-foreground/30 bg-background text-muted-foreground"
+                className={`relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${
+                  state === "completed" || state === "active"
+                    ? "bg-red-600 text-white shadow-md"
+                    : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
-                <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Icon className="w-5 h-5" />
               </div>
-              <span
-                className={`mt-2 text-[11px] font-semibold sm:text-xs ${
-                  isCurrent ? "text-primary" : isDone ? "text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {step.label}
-              </span>
-              <span className="hidden text-[10px] text-muted-foreground md:inline">{step.desc}</span>
             </div>
-          );
-        })}
-      </div>
 
-      <div className="absolute top-[18px] left-6 right-6 -z-0 h-1 -translate-y-1/2 bg-muted sm:top-[20px] sm:left-8 sm:right-8">
-        <div
-          className="h-full bg-primary transition-all duration-500 ease-out"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function AssignedRider({ order, customerId }: {
-  order: { id: string; rider_id: string | null };
-  customerId: string | undefined;
-}) {
-  const { data: riderName, isPending, isError } = useQuery({
-    queryKey: ["order-rider", customerId, order.id, order.rider_id],
-    enabled: Boolean(customerId && order.rider_id),
-    queryFn: () => loadAssignedRider(order, (orderId) =>
-      supabase.rpc("order_rider", { _order: orderId })),
-  });
-
-  if (!order.rider_id) return null;
-
-  return (
-    <div className="mt-4 flex items-center gap-3 border-y border-border py-3">
-      <Bike className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-      <div className="min-w-0" aria-live="polite">
-        <p className="text-xs text-muted-foreground">Your delivery rider</p>
-        <p className="break-words text-sm font-semibold">
-          {isPending ? "Loading rider…" : isError ? "Rider details unavailable" : riderName || "Rider assigned"}
-        </p>
-      </div>
+            {/* Step Label */}
+            <span
+              className={`mt-2 text-xs font-medium ${
+                state === "active" ? "text-red-600 font-bold" : "text-muted-foreground"
+              }`}
+            >
+              {step.label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -112,100 +80,74 @@ function AssignedRider({ order, customerId }: {
 function Orders() {
   const { session } = useAuth();
   const qc = useQueryClient();
-  const uid = session?.user.id;
+  const userId = session?.user.id;
 
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["my-orders", uid],
-    enabled: !!uid,
-    refetchInterval: 15000,
+  const { data: orders = [] } = useQuery({
+    queryKey: ["user-orders", userId],
+    enabled: !!userId,
     queryFn: async () => {
-      if (!uid) return [];
       const { data, error } = await supabase
         .from("orders")
         .select("*, order_items(*)")
-        .eq("customer_id", uid)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
   });
 
+  // Real-time subscription to instantly update the timeline when status changes
   useEffect(() => {
-    if (!uid) return;
     const ch = supabase
-      .channel(`my-orders-${Math.random().toString(36).slice(2)}`)
+      .channel("customer-orders-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: `customer_id=eq.${uid}` },
-        () => qc.invalidateQueries({ queryKey: ["my-orders"] })
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["user-orders"] });
+        }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [uid, qc]);
-
-  const cancel = async (id: string) => {
-    const { error } = await supabase.rpc("cancel_my_order", { _order: id });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Order cancelled");
-      qc.invalidateQueries({ queryKey: ["my-orders"] });
-    }
-  };
+  }, [qc]);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-3xl font-bold">My orders</h1>
-      {isLoading && <p className="mt-4 text-muted-foreground">Loading orders...</p>}
-      {!isLoading && !orders.length && (
-        <p className="mt-4 text-muted-foreground">No orders yet. Head to the menu to place an order!</p>
-      )}
-
-      <div className="mt-6 space-y-4">
-        {orders.map((o) => (
-          <article key={o.id} className="rounded-2xl border bg-card p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  #{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleString()}
-                </p>
-                <p className="text-xl font-bold">{peso(o.total)}</p>
+    <main className="mx-auto max-w-4xl px-4 py-10">
+      <h1 className="text-3xl font-bold mb-6">My Orders</h1>
+      {!orders.length ? (
+        <p className="text-muted-foreground">You haven't placed any orders yet.</p>
+      ) : (
+        <div className="space-y-6">
+          {orders.map((o) => (
+            <article key={o.id} className="rounded-2xl border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <p className="font-bold font-mono">Order #{o.id.slice(0, 8)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(o.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <StatusBadge status={o.status} />
               </div>
-              <StatusBadge status={o.status} />
-            </div>
 
-            {/* Live Visual Tracker */}
-            <OrderTracker status={o.status} />
-            <AssignedRider order={o} customerId={uid} />
+              <div className="my-6">
+                <OrderTracker status={o.status} />
+              </div>
 
-            <ul className="mt-4 divide-y divide-border/40 text-sm">
-              {o.order_items.map((it) => (
-                <li key={it.id} className="py-1">
-                  {it.quantity}× {it.name}
-                </li>
-              ))}
-            </ul>
-
-            <p className="mt-3 text-sm text-muted-foreground">
-              Cash on delivery · {o.address}
-            </p>
-
-            {o.status === "pending" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => cancel(o.id)}
-              >
-                Cancel order
-              </Button>
-            )}
-          </article>
-        ))}
-      </div>
+              <div className="border-t pt-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">
+                    {o.order_items?.map((i: any) => `${i.quantity}× ${i.name}`).join(", ")}
+                  </p>
+                </div>
+                <p className="font-bold text-lg">{peso(o.total)}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
