@@ -14,6 +14,7 @@ import {
   UtensilsCrossed,
   Wrench,
   Facebook,
+  Github,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -151,15 +152,32 @@ function AboutPage() {
                 />
               </div>
 
-              <a
-                href="https://www.facebook.com/share/1EeSoXM1rS/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="grid h-12 w-12 place-items-center rounded-full bg-blue-600 text-white shadow-md transition-transform hover:scale-110 hover:bg-blue-700"
-                aria-label="Jessie Cabrera's Facebook Profile"
-              >
-                <Facebook className="h-6 w-6 fill-current" />
-              </a>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Contact Me
+                </p>
+                <div className="flex flex-col gap-3">
+                  <a
+                    href="https://www.facebook.com/share/1EeSoXM1rS/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="grid h-12 w-12 place-items-center rounded-full bg-blue-600 text-white shadow-md transition-transform hover:scale-110 hover:bg-blue-700"
+                    aria-label="Jessie Cabrera's Facebook Profile"
+                  >
+                    <Facebook className="h-6 w-6 fill-current" />
+                  </a>
+
+                  <a
+                    href="https://github.com/hearty29/roadside/tree/server"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="grid h-12 w-12 place-items-center rounded-full bg-neutral-900 text-white shadow-md transition-transform hover:scale-110 hover:bg-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                    aria-label="Jessie Cabrera's GitHub Repository"
+                  >
+                    <Github className="h-6 w-6 fill-current" />
+                  </a>
+                </div>
+              </div>
             </div>
 
             <p className="mt-6 font-display text-2xl font-bold text-foreground">
