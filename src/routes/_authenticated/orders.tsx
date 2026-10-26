@@ -39,13 +39,15 @@ function OrderTracker({ status }: { status: string }) {
   const progressPercent =
     currentIdx <= 0 ? 0 : (currentIdx / (TRACKING_STEPS.length - 1)) * 100;
 
+  const isOrderDelivered = status === "delivered";
+
   return (
     <div className="relative my-6 px-1 sm:px-3">
       <div className="flex items-center justify-between">
         {TRACKING_STEPS.map((step, idx) => {
           const Icon = step.icon;
-          const isDone = idx < currentIdx;
-          const isCurrent = idx === currentIdx;
+          const isDone = idx < currentIdx || (isOrderDelivered && idx === currentIdx);
+          const isCurrent = !isOrderDelivered && idx === currentIdx;
 
           return (
             <div key={step.id} className="relative z-10 flex flex-col items-center text-center">
