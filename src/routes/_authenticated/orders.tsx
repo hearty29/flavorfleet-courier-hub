@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { loadAssignedRider } from "@/lib/order-rider";
 
 export const Route = createFileRoute("/_authenticated/orders")({
   head: () => ({
@@ -82,6 +83,32 @@ function OrderTracker({ status }: { status: string }) {
   );
 }
 
+function AssignedRider({ order, customerId }: {
+  order: { id: string; rider_id: string | null };
+  customerId: string | undefined;
+}) {
+  const { data: riderName, isPending, isError } = useQuery({
+    queryKey: ["order-rider", customerId, order.id, order.rider_id],
+    enabled: Boolean(customerId && order.rider_id),
+    queryFn: () => loadAssignedRider(order, (orderId) =>
+      supabase.rpc("order_rider", { _order: orderId })),
+  });
+
+  if (!order.rider_id) return null;
+
+  return (
+    <div className="mt-4 flex items-center gap-3 border-y border-border py-3">
+      <Bike className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <div className="min-w-0" aria-live="polite">
+        <p className="text-xs text-muted-foreground">Your delivery rider</p>
+        <p className="break-words text-sm font-semibold">
+          {isPending ? "Loading rider…" : isError ? "Rider details unavailable" : riderName || "Rider assigned"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Orders() {
   const { session } = useAuth();
   const qc = useQueryClient();
@@ -90,11 +117,13 @@ function Orders() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["my-orders", uid],
     enabled: !!uid,
+    refetchInterval: 15000,
     queryFn: async () => {
+      if (!uid) return [];
       const { data, error } = await supabase
         .from("orders")
         .select("*, order_items(*)")
-        .eq("customer_id", uid!)
+        .eq("customer_id", uid)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -150,6 +179,7 @@ function Orders() {
 
             {/* Live Visual Tracker */}
             <OrderTracker status={o.status} />
+            <AssignedRider order={o} customerId={uid} />
 
             <ul className="mt-4 divide-y divide-border/40 text-sm">
               {o.order_items.map((it) => (
