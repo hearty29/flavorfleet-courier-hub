@@ -28,24 +28,24 @@ export function ProofOfDeliveryModal({ orderId, onSuccess, onClose }: ProofOfDel
     try {
       setUploading(true);
 
-      // Using the verified working 'gcash-receipts' bucket
+      // 1. Upload image to Supabase Storage bucket ('delivery-proofs')
       const fileName = `pod_${orderId}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage
-        .from("gcash-receipts")
+        .from("delivery-proofs")
         .upload(fileName, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // Get public URL of the uploaded image
+      // 2. Get public URL of the uploaded image
       const { data: publicUrlData } = supabase.storage
-        .from("gcash-receipts")
+        .from("delivery-proofs")
         .getPublicUrl(fileName);
 
       const photoUrl = publicUrlData.publicUrl;
 
-      // Update the orders table with status and photo URL
+      // 3. Update the cafe_orders table with status and the photo URL
       const { error: updateError } = await supabase
-        .from("orders")
+        .from("cafe_orders")
         .update({
           status: "delivered",
           proof_of_delivery_url: photoUrl,
