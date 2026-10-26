@@ -57,7 +57,7 @@ const CRAFT = [
     body: "Frontend, database rules, and the delivery logic all live in one codebase — no spreadsheet babysitting in the background.",
   },
   {
-    icon: ShieldGrid,
+    icon: MapPinned,
     title: "Rules kept in the database",
     body: "Prices, order acceptance, and who is allowed to do what are enforced by the backend, not the browser. Nothing gets quietly edited.",
   },

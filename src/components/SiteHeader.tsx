@@ -26,6 +26,14 @@ export function SiteHeader() {
           Roadside<span className="text-foreground"> Paddles</span>
         </Link>
 
+        {/* About Us Tab */}
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/about">
+            <Info className="h-4 w-4" />
+            <span className="ml-1.5 font-medium">About</span>
+          </Link>
+        </Button>
+
         {/* Pickleball Tab */}
         <Button asChild variant="ghost" size="sm">
           <Link to="/pickleball">
