@@ -73,6 +73,9 @@ const TIME_SLOTS = [
   "08:00 AM - 09:00 AM",
   "09:00 AM - 10:00 AM",
   "10:00 AM - 11:00 AM",
+  "11:00 AM - 12:00 PM",
+  "12:00 PM - 01:00 PM",
+  "01:00 PM - 02:00 PM",
   "02:00 PM - 03:00 PM",
   "03:00 PM - 04:00 PM",
   "04:00 PM - 05:00 PM",
@@ -81,6 +84,8 @@ const TIME_SLOTS = [
   "07:00 PM - 08:00 PM",
   "08:00 PM - 09:00 PM",
   "09:00 PM - 10:00 PM",
+  "10:00 PM - 11:00 PM",
+  "11:00 PM - 12:00 AM",
 ];
 
 function PickleballPage() {
@@ -476,7 +481,7 @@ function PickleballPage() {
             <div>
               <h2 className="text-2xl font-bold">Live Court Availability</h2>
               <p className="text-sm text-muted-foreground">
-                Operating Hours: 6:00 AM – 10:00 PM Daily
+                Operating Hours: 6:00 AM – 12:00 AM Daily
               </p>
             </div>
             <Button
@@ -523,7 +528,7 @@ function PickleballPage() {
                       <span className="font-semibold text-foreground">₱{court.rateDay}/hr</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Night Rate (5pm-12pm):</span>
+                      <span className="text-muted-foreground">Night Rate (5pm-12am):</span>
                       <span className="font-semibold text-foreground">₱{court.rateNight}/hr</span>
                     </div>
                   </div>
