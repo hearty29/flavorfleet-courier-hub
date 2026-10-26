@@ -138,11 +138,15 @@ function AboutPage() {
           </p>
         </div>
 
-        {/* Monogram card */}
+        {/* Profile Card */}
         <div className="relative">
           <div className="relative overflow-hidden rounded-[2rem] border bg-card p-8 shadow-warm">
-            <div className="grid h-40 w-40 place-items-center rounded-[1.5rem] bg-primary text-6xl font-extrabold text-primary-foreground">
-              <span className="font-display">JC</span>
+            <div className="relative h-40 w-40 overflow-hidden rounded-full border-2 border-border shadow-md">
+              <img
+                src="/images/jessie-cabrera.jpg"
+                alt="Jessie Cabrera"
+                className="h-full w-full object-cover"
+              />
             </div>
 
             <p className="mt-6 font-display text-2xl font-bold text-foreground">
