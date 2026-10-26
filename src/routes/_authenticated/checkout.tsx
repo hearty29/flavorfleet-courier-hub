@@ -58,33 +58,25 @@ function Checkout() {
     const name = String(f.get("name") || "");
     const notesInput = String(f.get("notes") || "");
 
-    // Prepare order items: If a rice add-on is chosen, we append it as a separate line item or tag it cleanly
+    // Only pass valid menu item UUIDs to the backend RPC function
     const orderItems = items.map((i) => ({
       id: i.id,
       quantity: i.quantity,
-      name: i.name,
-      price: i.price,
     }));
 
-    if (selectedRice) {
-      orderItems.push({
-        id: selectedRice.id,
-        quantity: 1,
-        name: `${selectedRice.name} + Takeout Bowl`,
-        price: selectedRice.ricePrice + selectedRice.bowlPrice,
-      });
-    }
-
-    const addonDetails = selectedRice
-      ? ` [Add-on: ${selectedRice.name} (+₱${selectedRice.ricePrice}) + Takeout Bowl (+₱${selectedRice.bowlPrice})]`
+    // Attach the rice add-on and its price cleanly into the notes so the rider and kitchen see it accurately
+    const addonNotesText = selectedRice
+      ? ` [ADD-ON: ${selectedRice.name} (+₱${selectedRice.ricePrice}) + Takeout Bowl (+₱${selectedRice.bowlPrice}) = Total Added: +₱${selectedRice.ricePrice + selectedRice.bowlPrice}]`
       : "";
+
+    const finalNotes = notesInput ? notesInput + addonNotesText : addonNotesText.trim();
 
     const { data, error } = await supabase.rpc("place_order", {
       _items: orderItems,
       _address: address,
       _phone: phone,
       _name: name,
-      _notes: notesInput + addonDetails,
+      _notes: finalNotes,
       _payment: "cod",
     });
 
@@ -150,23 +142,6 @@ function Checkout() {
               </Button>
             </li>
           ))}
-
-          {/* Show selected rice add-on directly in the cart preview list */}
-          {selectedRice && (
-            <li className="flex items-center justify-between p-4 bg-muted/30">
-              <div>
-                <p className="font-medium">{selectedRice.name} + Takeout Bowl</p>
-                <p className="text-sm text-muted-foreground">{peso(selectedRice.ricePrice + selectedRice.bowlPrice)}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRice(null)}
-                className="text-xs font-semibold text-red-600 hover:underline"
-              >
-                Remove
-              </button>
-            </li>
-          )}
         </ul>
       </section>
 
