@@ -1,12 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Bike,
+  Briefcase,
   Code2,
+  Database,
+  Gamepad2,
+  Globe2,
   LayoutGrid,
   MapPinned,
+  Smartphone,
   Sparkles,
   Trophy,
   UtensilsCrossed,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -69,6 +75,39 @@ const CRAFT = [
 ];
 
 
+const EXPERIENCE = [
+  {
+    icon: Gamepad2,
+    tag: "Games",
+    role: "Game Developer",
+    body: "Builds playable experiences — game logic, levels, controls, and the feel of the thing once it's in your hands.",
+  },
+  {
+    icon: Globe2,
+    tag: "Web",
+    role: "Website Developer",
+    body: "Builds sites and web apps end to end: the layout that holds up on any screen, plus the forms, dashboards, and pages behind them.",
+  },
+  {
+    icon: Database,
+    tag: "Data",
+    role: "Backend & Database Developer",
+    body: "Designs the data model and the rules on top of it — orders, roles, and payments that can't be quietly edited from the browser.",
+  },
+  {
+    icon: Smartphone,
+    tag: "Product",
+    role: "App & Interface Developer",
+    body: "Turns a feature list into screens a person can actually use — one-handed, in bright sun, with a thumb.",
+  },
+  {
+    icon: Wrench,
+    tag: "And more",
+    role: "Freelance & Project Work",
+    body: "Fixes, integrations, and one-off builds — whatever a small business needs shipped this week, figured out as it goes.",
+  },
+];
+
 function AboutPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 pb-24">
@@ -84,7 +123,10 @@ function AboutPage() {
           </h1>
           <p className="mt-4 text-xl font-medium text-primary md:text-2xl">
             Software Developer
-            <span className="text-muted-foreground"> · Product &amp; Backend</span>
+            <span className="text-muted-foreground">
+              {" "}
+              · Games, Web &amp; Backend
+            </span>
           </p>
           <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
             Roadside Paddles is a homegrown project — one developer, one
@@ -124,19 +166,55 @@ function AboutPage() {
             <ul className="mt-6 space-y-2 border-t pt-5 text-sm">
               <li className="flex items-center gap-2 text-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Application development
+                Game development
               </li>
               <li className="flex items-center gap-2 text-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Database &amp; system design
+                Website development
               </li>
               <li className="flex items-center gap-2 text-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                Interface &amp; experience design
+                Backend &amp; databases
               </li>
             </ul>
           </div>
         </div>
+      </section>
+
+      {/* Experience */}
+      <section className="mt-6">
+        <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">
+          <Briefcase className="h-4 w-4" />
+          Experience
+        </span>
+        <h2 className="mt-4 text-3xl font-bold">What I do</h2>
+        <p className="mt-2 max-w-2xl text-muted-foreground">
+          A generalist builder — comfortable anywhere from the game loop down to
+          the database schema.
+        </p>
+        <ol className="mt-8">
+          {EXPERIENCE.map(({ icon: Icon, tag, role, body }, i) => (
+            <li key={role} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                {i < EXPERIENCE.length - 1 && (
+                  <span className="mt-1 w-0.5 flex-1 bg-border" aria-hidden />
+                )}
+              </div>
+              <div className="max-w-xl pb-8">
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  {tag}
+                </p>
+                <h3 className="mt-1 text-xl font-bold">{role}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {body}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* Pillars */}

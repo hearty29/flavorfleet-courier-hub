@@ -21,24 +21,24 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4">
-        <Link to="/" className="mr-auto font-display text-2xl font-extrabold text-primary">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-1 px-3 sm:gap-2 sm:px-4">
+        <Link to="/" className="mr-auto min-w-0 truncate font-display text-xl font-extrabold text-primary sm:text-2xl">
           Roadside<span className="text-foreground"> Paddles</span>
         </Link>
 
         {/* About Us Tab */}
         <Button asChild variant="ghost" size="sm">
-          <Link to="/about">
+          <Link to="/about" aria-label="About us">
             <Info className="h-4 w-4" />
-            <span className="ml-1.5 font-medium">About</span>
+            <span className="ml-1.5 hidden font-medium sm:inline">About</span>
           </Link>
         </Button>
 
         {/* Pickleball Tab */}
         <Button asChild variant="ghost" size="sm">
-          <Link to="/pickleball">
+          <Link to="/pickleball" aria-label="Pickleball courts">
             <Trophy className="h-4 w-4" />
-            <span className="ml-1.5 font-medium">Pickleball</span>
+            <span className="ml-1.5 hidden font-medium sm:inline">Pickleball</span>
           </Link>
         </Button>
 
