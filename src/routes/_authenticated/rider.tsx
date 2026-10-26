@@ -275,7 +275,7 @@ function Rider() {
                   )
                 }
               >
-                Accept delivery
+                Accept Order
               </Button>
             </Card>
           ))}
