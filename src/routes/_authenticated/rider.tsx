@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { MapPin, Phone, MessageSquare, Volume2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { ProofOfDeliveryModal } from "@/components/ProofOfDeliveryModal";
 
 export const Route = createFileRoute("/_authenticated/rider")({
   head: () => ({
@@ -55,6 +56,9 @@ function Rider() {
   const qc = useQueryClient();
   const uid = session?.user.id;
   const isRider = roles.includes("rider");
+
+  // State to track which order is currently opening the Proof of Delivery modal
+  const [activeOrderIdForPod, setActiveOrderIdForPod] = useState<string | null>(null);
 
   const { data: orders = [] } = useQuery({
     queryKey: ["rider-orders", uid],
@@ -240,14 +244,7 @@ function Rider() {
               {o.status === "picked_up" && (
                 <Button
                   className="w-full"
-                  onClick={() =>
-                    act(() =>
-                      supabase.rpc("rider_update_status", {
-                        _order: o.id,
-                        _status: "delivered",
-                      })
-                    )
-                  }
+                  onClick={() => setActiveOrderIdForPod(o.id)}
                 >
                   Mark delivered
                 </Button>
@@ -281,6 +278,18 @@ function Rider() {
           ))}
         </div>
       </section>
+
+      {/* Proof of Delivery Modal Trigger */}
+      {activeOrderIdForPod && (
+        <ProofOfDeliveryModal
+          orderId={activeOrderIdForPod}
+          onClose={() => setActiveOrderIdForPod(null)}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["rider-orders"] });
+            toast.success("Delivery completed and photo uploaded!");
+          }}
+        />
+      )}
     </main>
   );
 }
