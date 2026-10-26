@@ -68,9 +68,6 @@ const CRAFT = [
   },
 ];
 
-function ShieldGrid() {
-  return <MapPinned className="h-5 w-5" aria-hidden />;
-}
 
 function AboutPage() {
   return (
