@@ -122,3 +122,13 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+
+meta: [
+  // ...
+  { name: "theme-color", content: "#ffffff" },
+],
+links: [
+  // ...
+  { rel: "manifest", href: "/manifest.json" },
+  { rel: "apple-touch-icon", href: "/icon-192.png" },
+],
