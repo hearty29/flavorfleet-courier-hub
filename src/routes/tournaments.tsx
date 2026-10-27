@@ -99,19 +99,16 @@ function TournamentsPage() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isAdminEditOpen, setIsAdminEditOpen] = useState(false);
 
-  // Form states for Admin Settings Edit
   const [editDate, setEditDate] = useState("");
   const [editPrize, setEditPrize] = useState("");
   const [editCourts, setEditCourts] = useState("");
 
-  // Registration Form states
   const [teamName, setTeamName] = useState("");
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
   const [contact, setContact] = useState("");
   const [skill, setSkill] = useState<"Beginner" | "Intermediate" | "Advanced">("Intermediate");
 
-  // Fetch tournament data from Supabase
   const fetchTournament = async () => {
     try {
       setLoading(true);
@@ -121,7 +118,6 @@ function TournamentsPage() {
         .maybeSingle();
 
       if (!data) {
-        // Initialize default record if none exists
         const newRecord = {
           id: TOURNAMENT_ID,
           title: "Roadside Open Doubles Championship",
@@ -176,9 +172,37 @@ function TournamentsPage() {
 
   useEffect(() => {
     fetchTournament();
+
+    // Enable Supabase Realtime Subscription so changes sync automatically across all users
+    const channel = supabase
+      .channel("public:tournaments")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tournaments", filter: `id=eq.${TOURNAMENT_ID}` },
+        (payload: any) => {
+          if (payload.new) {
+            const newData = payload.new;
+            setTournament({
+              id: newData.id,
+              title: newData.title,
+              date: newData.date,
+              entryFee: Number(newData.entry_fee),
+              prizePool: newData.prize_pool,
+              courtsText: newData.courts_text,
+              status: newData.status,
+              teams: newData.teams || INITIAL_TEAMS,
+              matches: newData.matches || INITIAL_MATCHES,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // Helper to save updated tournament state to Supabase
   const saveTournamentState = async (updated: Tournament) => {
     setTournament(updated);
     const { error } = await (supabase.from("tournaments" as any) as any)
@@ -199,7 +223,6 @@ function TournamentsPage() {
     }
   };
 
-  // Admin: Remove Team
   const handleRemoveTeam = async (teamId: string, name: string) => {
     if (!tournament || !confirm(`Are you sure you want to remove "${name}"?`)) return;
 
@@ -208,7 +231,6 @@ function TournamentsPage() {
     toast.success(`Team "${name}" removed successfully.`);
   };
 
-  // Admin: Save General Settings (Date, Prize, Courts)
   const handleSaveAdminSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tournament) return;
@@ -224,7 +246,6 @@ function TournamentsPage() {
     setIsAdminEditOpen(false);
   };
 
-  // Admin: Update Match Court Number
   const handleMatchCourtChange = async (matchId: string, newCourt: string) => {
     if (!tournament) return;
 
@@ -233,7 +254,6 @@ function TournamentsPage() {
     toast.success("Match court updated.");
   };
 
-  // Admin: Update Score
   const handleScoreChange = async (matchId: string, teamNum: 1 | 2, delta: number) => {
     if (!tournament) return;
 
@@ -246,7 +266,6 @@ function TournamentsPage() {
     await saveTournamentState({ ...tournament, matches: updatedMatches });
   };
 
-  // Admin: Declare Winner
   const handleDeclareWinner = async (matchId: string, winningTeamId: string) => {
     if (!tournament) return;
 
@@ -257,7 +276,6 @@ function TournamentsPage() {
     toast.success("Match completed! Winner advanced.");
   };
 
-  // Register Team
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tournament) return;
