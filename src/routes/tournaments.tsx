@@ -145,8 +145,8 @@ function TournamentsPage() {
         setEditPrize(newRecord.prize_pool);
         setEditCourts(newRecord.courts_text);
       } else {
-        const teamsList = data.teams && data.teams.length > 0 ? data.teams : INITIAL_TEAMS;
-        const matchesList = data.matches && data.matches.length > 0 ? data.matches : INITIAL_MATCHES;
+        const teamsList = data.teams ? data.teams : [];
+        const matchesList = data.matches ? data.matches : INITIAL_MATCHES;
 
         setTournament({
           id: data.id,
@@ -173,7 +173,6 @@ function TournamentsPage() {
   useEffect(() => {
     fetchTournament();
 
-    // Enable Supabase Realtime Subscription so changes sync automatically across all users
     const channel = supabase
       .channel("public:tournaments")
       .on(
@@ -190,7 +189,7 @@ function TournamentsPage() {
               prizePool: newData.prize_pool,
               courtsText: newData.courts_text,
               status: newData.status,
-              teams: newData.teams || INITIAL_TEAMS,
+              teams: newData.teams || [],
               matches: newData.matches || INITIAL_MATCHES,
             });
           }
@@ -471,7 +470,7 @@ function TournamentsPage() {
         </div>
       </section>
 
-      {/* Registered Teams Directory with Admin Remove */}
+      {/* Registered Teams Directory */}
       <section className="mx-auto max-w-6xl px-4 pt-12">
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
