@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      cafe_orders: {
+        Row: {
+          created_at: string | null
+          id: number
+          proof_of_delivery_url: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          proof_of_delivery_url?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          proof_of_delivery_url?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       court_bookings: {
         Row: {
           balls: boolean
@@ -192,6 +213,7 @@ export type Database = {
           notes: string | null
           payment_method: string
           phone: string
+          proof_of_delivery_url: string | null
           rider_id: string | null
           rider_name: string | null
           rider_phone: string | null
@@ -209,6 +231,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           phone: string
+          proof_of_delivery_url?: string | null
           rider_id?: string | null
           rider_name?: string | null
           rider_phone?: string | null
@@ -226,6 +249,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           phone?: string
+          proof_of_delivery_url?: string | null
           rider_id?: string | null
           rider_name?: string | null
           rider_phone?: string | null
