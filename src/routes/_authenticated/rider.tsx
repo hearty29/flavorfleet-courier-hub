@@ -27,7 +27,6 @@ export const Route = createFileRoute("/_authenticated/rider")({
   component: Rider,
 });
 
-// Upbeat 3-tone chime when an order is ready for pickup
 function playRiderPickupSound() {
   try {
     const AudioCtx =
@@ -82,7 +81,6 @@ function OrderCard({
             <span>{o.address}</span>
           </p>
 
-          {/* Quick Contact Buttons */}
           {cleanPhone && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button
@@ -123,7 +121,6 @@ function OrderCard({
     );
   }
 
-
 function Rider() {
   const { session, roles, loading } = useAuth();
   const qc = useQueryClient();
@@ -159,7 +156,6 @@ function Rider() {
             rider_id?: string | null;
             id?: string;
           };
-          // Alert rider if an order just became ready and hasn't been taken yet
           if (nextOrder?.status === "ready" && !nextOrder?.rider_id) {
             playRiderPickupSound();
             toast.success("🛵 New order ready for pickup!", {
@@ -193,7 +189,6 @@ function Rider() {
   const available = orders.filter((o) => !o.rider_id && o.status === "ready");
   const mine = orders.filter((o) => o.rider_id === uid && o.status !== "delivered");
   const done = orders.filter((o) => o.rider_id === uid && o.status === "delivered");
-
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">

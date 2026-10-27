@@ -35,7 +35,6 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: Admin,
 });
 
-// Built-in chime using Web Audio API (no external audio files needed)
 function playNewOrderSound() {
   try {
     const AudioCtx =
@@ -45,7 +44,6 @@ function playNewOrderSound() {
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
 
-    // Tone 1 (D5)
     const o1 = ctx.createOscillator();
     const g1 = ctx.createGain();
     o1.type = "sine";
@@ -57,7 +55,6 @@ function playNewOrderSound() {
     o1.start(now);
     o1.stop(now + 0.35);
 
-    // Tone 2 (A5)
     const o2 = ctx.createOscillator();
     const g2 = ctx.createGain();
     o2.type = "sine";
@@ -147,7 +144,6 @@ function OrdersTab() {
     },
   });
 
-  // Lookup map to get the rider's registered full name
   const { data: riderMap = {} } = useQuery({
     queryKey: ["admin-rider-map"],
     queryFn: async () => {

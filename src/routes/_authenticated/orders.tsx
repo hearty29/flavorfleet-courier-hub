@@ -186,7 +186,6 @@ function Orders() {
               <StatusBadge status={o.status} />
             </div>
 
-            {/* Live Visual Tracker */}
             <OrderTracker status={o.status} />
             <AssignedRider order={o} customerId={uid} />
             <DeliveryProofImage path={o.proof_of_delivery_path} />
