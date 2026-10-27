@@ -43,26 +43,51 @@ export function SiteHeader() {
         </Button>
 
         {roles.includes("admin") && (
-          <Button asChild variant="ghost" size="sm"><Link to="/admin"><Shield /> <span className="hidden sm:inline">Admin</span></Link></Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/admin" aria-label="Admin panel">
+              <Shield className="h-4 w-4" />
+              <span className="ml-1.5 hidden font-medium sm:inline">Admin</span>
+            </Link>
+          </Button>
         )}
+
         {roles.includes("rider") && (
-          <Button asChild variant="ghost" size="sm"><Link to="/rider"><Bike /> <span className="hidden sm:inline">Rider</span></Link></Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/rider" aria-label="Rider dashboard">
+              <Bike className="h-4 w-4" />
+              <span className="ml-1.5 hidden font-medium sm:inline">Rider</span>
+            </Link>
+          </Button>
         )}
+
         {session && (
-          <Button asChild variant="ghost" size="sm"><Link to="/orders"><Receipt /> <span className="hidden sm:inline">Orders</span></Link></Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/orders" aria-label="My orders">
+              <Receipt className="h-4 w-4" />
+              <span className="ml-1.5 hidden font-medium sm:inline">Orders</span>
+            </Link>
+          </Button>
         )}
+
         <Button asChild variant="outline" size="sm" className="relative">
-          <Link to="/checkout">
-            <ShoppingBag />
+          <Link to="/checkout" aria-label="View Cart">
+            <ShoppingBag className="h-4 w-4" />
             {count > 0 && (
-              <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-xs text-primary-foreground">{count}</span>
+              <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-xs text-primary-foreground font-bold">
+                {count}
+              </span>
             )}
           </Link>
         </Button>
+
         {session ? (
-          <Button variant="ghost" size="sm" onClick={signOut} aria-label="Sign out"><LogOut /></Button>
+          <Button variant="ghost" size="sm" onClick={signOut} aria-label="Sign out">
+            <LogOut className="h-4 w-4" />
+          </Button>
         ) : (
-          <Button asChild size="sm"><Link to="/auth">Sign in</Link></Button>
+          <Button asChild size="sm">
+            <Link to="/auth">Sign in</Link>
+          </Button>
         )}
       </div>
     </header>
