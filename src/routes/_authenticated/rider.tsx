@@ -1,28 +1,38 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import type { Database } from "@/integrations/supabase/types";
+import { RiderProfilePhoto, riderPhotoQuery } from "@/components/RiderProfilePhoto";
+import { DeliveryProofImage, DeliveryProofUpload } from "@/components/DeliveryProof";
+import { requireRiderPhoto } from "@/lib/delivery-photos";
 import { toast } from "sonner";
-import { MapPin, Phone, MessageSquare, Volume2, Upload, Headphones } from "lucide-react";
+import { MapPin, Phone, MessageSquare, Volume2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { peso, uploadPrivate } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
+import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { ChatModal } from "@/components/ChatModal";
 
 export const Route = createFileRoute("/_authenticated/rider")({
   head: () => ({
     meta: [
-      { title: "Rider Dashboard — Roadside Paddles" },
-      { name: "description", content: "Accept and deliver orders." },
+      { title: "Rider dashboard — Roadside Cafe" },
+      { name: "description", content: "Accept and deliver Roadside Cafe orders." },
+      { property: "og:title", content: "Rider dashboard — Roadside Cafe" },
+      { property: "og:description", content: "Accept and deliver Roadside Cafe orders." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Rider,
 });
 
+// Upbeat 3-tone chime when an order is ready for pickup
 function playRiderPickupSound() {
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
@@ -40,46 +50,125 @@ function playRiderPickupSound() {
       osc.stop(start + 0.28);
     });
   } catch (e) {
-    console.error(e);
+    console.error("Audio error:", e);
   }
 }
 
-function Rider() {
-  const { user, roles, loading } = useAuth();
-  const qc = useQueryClient();
-  const isRider = roles.includes("rider");
+function OrderCard({
+    o,
+    children,
+  }: {
+    o: Database["public"]["Tables"]["orders"]["Row"] & { order_items: Database["public"]["Tables"]["order_items"]["Row"][] };
+    children?: React.ReactNode;
+  }) {
+    const cleanPhone = o.phone ? o.phone.replace(/[^0-9+]/g, "") : "";
+    const customerGreeting = o.customer_name ? ` ${o.customer_name}` : "";
+    const smsText = encodeURIComponent(
+      `Hello${customerGreeting}! I'm your Roadside Cafe delivery rider. I'm on my way with your order.`
+    );
 
-  const [activeChat, setActiveChat] = useState<{
-    conversationId: string;
-    title: string;
-    subtitle?: string;
-  } | null>(null);
+    return (
+      <article className="rounded-2xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between">
+            <p className="font-bold">
+              {o.customer_name || "Customer"} · {peso(o.total)}
+            </p>
+            <StatusBadge status={o.status} />
+          </div>
+
+          <p className="mt-2 flex gap-2 text-sm text-foreground">
+            <MapPin className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+            <span>{o.address}</span>
+          </p>
+
+          {/* Quick Contact Buttons */}
+          {cleanPhone && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400"
+              >
+                <a href={`tel:${cleanPhone}`}>
+                  <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                  Call
+                </a>
+              </Button>
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 border-blue-600/30 text-blue-700 hover:bg-blue-50 dark:text-blue-400"
+              >
+                <a href={`sms:${cleanPhone}?body=${smsText}`}>
+                  <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+                  SMS
+                </a>
+              </Button>
+              <span className="text-xs text-muted-foreground font-mono">{o.phone}</span>
+            </div>
+          )}
+
+          {o.notes && <p className="mt-2 text-sm text-muted-foreground">Note: {o.notes}</p>}
+          <p className="mt-2 text-sm text-muted-foreground">
+            {o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+          </p>
+          <p className="mt-1 text-sm font-semibold">Collect cash: {peso(o.total)}</p>
+        </div>
+
+        <div className="mt-4 flex gap-2">{children}</div>
+      </article>
+    );
+  }
+
+
+function Rider() {
+  const { session, roles, loading } = useAuth();
+  const qc = useQueryClient();
+  const uid = session?.user.id;
+  const isRider = roles.includes("rider");
+  const { data: photo } = useQuery(riderPhotoQuery(uid));
 
   const { data: orders = [] } = useQuery({
-    queryKey: ["rider-orders", user?.id],
+    queryKey: ["rider-orders", uid],
     enabled: isRider,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("*, order_items(*)")
+        .in("status", ["ready", "picked_up", "delivered"])
+        .order("created_at", { ascending: false })
+        .limit(100);
       if (error) throw error;
-      return data ?? [];
+      return data;
     },
   });
 
   useEffect(() => {
     if (!isRider) return;
     const ch = supabase
-      .channel(`rider-live-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
-        const nextOrder = payload.new as any;
-        if (nextOrder?.status === "preparing" && !nextOrder?.rider_id) {
-          playRiderPickupSound();
-          toast.info("🛵 New order available for pickup!");
+      .channel(`rider-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload) => {
+          const nextOrder = payload.new as {
+            status?: string;
+            rider_id?: string | null;
+            id?: string;
+          };
+          // Alert rider if an order just became ready and hasn't been taken yet
+          if (nextOrder?.status === "ready" && !nextOrder?.rider_id) {
+            playRiderPickupSound();
+            toast.success("🛵 New order ready for pickup!", {
+              description: "Check Available Orders below to accept.",
+            });
+          }
+          qc.invalidateQueries({ queryKey: ["rider-orders"] });
         }
-        qc.invalidateQueries({ queryKey: ["rider-orders"] });
-      })
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -90,184 +179,107 @@ function Rider() {
   if (!isRider)
     return (
       <main className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Riders Only</h1>
-        <p className="mt-2 text-muted-foreground">Apply as a rider to access deliveries.</p>
+        <h1 className="text-2xl font-bold">Riders only</h1>
+        <p className="mt-2 text-muted-foreground">Apply as a rider to access this dashboard.</p>
       </main>
     );
 
-  const updateStatus = async (id: string, patch: any) => {
-    const { error } = await supabase.from("orders").update(patch).eq("id", id);
+  const act = async (fn: () => PromiseLike<{ error: { message: string } | null }>) => {
+    const { error } = await fn();
     if (error) toast.error(error.message);
     else qc.invalidateQueries({ queryKey: ["rider-orders"] });
   };
 
-  const openCustomerChat = async (order: any) => {
-    let { data: conv } = await supabase
-      .from("chat_conversations")
-      .select("id")
-      .eq("order_id", order.id)
-      .maybeSingle();
+  const available = orders.filter((o) => !o.rider_id && o.status === "ready");
+  const mine = orders.filter((o) => o.rider_id === uid && o.status !== "delivered");
+  const done = orders.filter((o) => o.rider_id === uid && o.status === "delivered");
 
-    if (!conv) {
-      const { data: created } = await supabase
-        .from("chat_conversations")
-        .insert({
-          type: "order",
-          order_id: order.id,
-          customer_id: order.user_id,
-          rider_id: user?.id,
-        })
-        .select("id")
-        .single();
-      conv = created;
-    }
-
-    if (conv) {
-      setActiveChat({
-        conversationId: conv.id,
-        title: `Chat with ${order.customer_name || "Customer"}`,
-        subtitle: `Order #${order.id.slice(0, 8)}`,
-      });
-    }
-  };
-
-  const openAdminSupportChat = async () => {
-    if (!user) return;
-    let { data: conv } = await supabase
-      .from("chat_conversations")
-      .select("id")
-      .eq("customer_id", user.id)
-      .eq("type", "support")
-      .maybeSingle();
-
-    if (!conv) {
-      const { data: created } = await supabase
-        .from("chat_conversations")
-        .insert({
-          type: "support",
-          customer_id: user.id,
-        })
-        .select("id")
-        .single();
-      conv = created;
-    }
-
-    if (conv) {
-      setActiveChat({
-        conversationId: conv.id,
-        title: "Rider Support Admin",
-        subtitle: "Direct line to management",
-      });
-    }
-  };
-
-  const available = orders.filter((o) => !o.rider_id && o.status !== "delivered" && o.status !== "cancelled");
-  const mine = orders.filter((o) => o.rider_id === user?.id && o.status !== "delivered");
-  const done = orders.filter((o) => o.rider_id === user?.id && o.status === "delivered");
-
-  const OrderCard = ({ o, children }: { o: any; children?: React.ReactNode }) => {
-    const cleanPhone = o.phone ? o.phone.replace(/[^0-9+]/g, "") : "";
-    return (
-      <article className="rounded-2xl border bg-card p-4 shadow-sm flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between">
-            <p className="font-bold">{o.customer_name} · {peso(o.total)}</p>
-            <StatusBadge status={o.status} />
-          </div>
-          <p className="mt-2 flex gap-2 text-sm text-foreground">
-            <MapPin className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-            <span>{o.address}</span>
-          </p>
-
-          {/* Contact Bar */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {cleanPhone && (
-              <>
-                <Button asChild size="sm" variant="outline" className="h-8 gap-1 border-emerald-600/30 text-emerald-700">
-                  <a href={`tel:${cleanPhone}`}><Phone className="h-3.5 w-3.5" /> Call</a>
-                </Button>
-                <Button asChild size="sm" variant="outline" className="h-8 gap-1 border-blue-600/30 text-blue-700">
-                  <a href={`sms:${cleanPhone}`}><MessageSquare className="h-3.5 w-3.5" /> SMS</a>
-                </Button>
-              </>
-            )}
-            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => openCustomerChat(o)}>
-              <MessageSquare className="h-3.5 w-3.5 text-primary" /> In-App Chat
-            </Button>
-          </div>
-
-          <p className="mt-2 text-xs text-muted-foreground">
-            {(o.items as any[]).map((i) => `${i.qty}× ${i.name}`).join(", ")}
-          </p>
-          <p className="mt-1 text-sm font-semibold">Collect: {peso(o.total)} ({o.payment_method.toUpperCase()})</p>
-        </div>
-        <div className="mt-4 flex gap-2">{children}</div>
-      </article>
-    );
-  };
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Rider Dashboard</h1>
-          <p className="text-muted-foreground">Delivered today: {done.length}</p>
+          <h1 className="text-3xl font-bold">Rider dashboard</h1>
+          <p className="text-muted-foreground">
+            Delivered today:{" "}
+            {
+              done.filter(
+                (o) => new Date(o.updated_at).toDateString() === new Date().toDateString()
+              ).length
+            }
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="gap-2" onClick={openAdminSupportChat}>
-            <Headphones className="h-4 w-4 text-primary" /> Support Admin
-          </Button>
-          <Button size="sm" variant="outline" className="gap-2" onClick={playRiderPickupSound}>
-            <Volume2 className="h-4 w-4" /> Test Chime
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            playRiderPickupSound();
+            toast.success("Rider alert chime played!");
+          }}
+        >
+          <Volume2 className="h-4 w-4" />
+          Test Rider Chime
+        </Button>
       </div>
 
+      {uid && <RiderProfilePhoto userId={uid} />}
+
       <section className="mt-6">
-        <h2 className="text-xl font-bold">My Active Deliveries ({mine.length})</h2>
+        <h2 className="text-xl font-bold">My active deliveries</h2>
         {!mine.length && <p className="text-sm text-muted-foreground mt-1">None right now.</p>}
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           {mine.map((o) => (
             <OrderCard key={o.id} o={o}>
-              {o.status === "preparing" && (
-                <Button className="w-full" onClick={() => updateStatus(o.id, { status: "picked_up" })}>
-                  Picked up from Store
+              {o.status === "ready" && (
+                <Button
+                  className="w-full"
+                  onClick={() =>
+                    act(() =>
+                      supabase.rpc("rider_update_status", {
+                        _order: o.id,
+                        _status: "picked_up",
+                      })
+                    )
+                  }
+                >
+                  Picked up Order
                 </Button>
               )}
-              {o.status === "picked_up" && (
-                <Button className="w-full" onClick={() => updateStatus(o.id, { status: "delivered" })}>
-                  Mark as Delivered
-                </Button>
-              )}
+              {o.status === "picked_up" && uid && <DeliveryProofUpload orderId={o.id} userId={uid} />}
             </OrderCard>
           ))}
         </div>
       </section>
 
       <section className="mt-8">
-        <h2 className="text-xl font-bold">Available Orders ({available.length})</h2>
-        {!available.length && <p className="text-sm text-muted-foreground mt-1">No orders waiting.</p>}
+        <h2 className="text-xl font-bold">Available orders</h2>
+        {!available.length && (
+          <p className="text-sm text-muted-foreground mt-1">No orders waiting for pickup.</p>
+        )}
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           {available.map((o) => (
             <OrderCard key={o.id} o={o}>
-              <Button className="w-full" onClick={() => updateStatus(o.id, { rider_id: user?.id, status: "preparing" })}>
+              <Button
+                className="w-full"
+                disabled={!photo?.hasPhoto}
+                onClick={() => {
+                  try { requireRiderPhoto(Boolean(photo?.hasPhoto)); }
+                  catch (e) { toast.error(e instanceof Error ? e.message : "Upload your profile picture first."); return; }
+                  void act(() => supabase.rpc("rider_accept_order", { _order: o.id }));
+                }}
+              >
                 Accept Order
               </Button>
             </OrderCard>
           ))}
         </div>
       </section>
-
-      {activeChat && (
-        <ChatModal
-          isOpen={Boolean(activeChat)}
-          onClose={() => setActiveChat(null)}
-          conversationId={activeChat.conversationId}
-          title={activeChat.title}
-          subtitle={activeChat.subtitle}
-          userRole="rider"
-        />
-      )}
+      <section className="mt-8">
+        <h2 className="text-xl font-bold">Completed deliveries</h2>
+        {!done.length && <p className="mt-1 text-sm text-muted-foreground">No completed deliveries yet.</p>}
+        <div className="mt-3 grid gap-4 md:grid-cols-2">{done.map((o) => <OrderCard key={o.id} o={o}><DeliveryProofImage path={o.proof_of_delivery_path} /></OrderCard>)}</div>
+      </section>
     </main>
   );
 }
