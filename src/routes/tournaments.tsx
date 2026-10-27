@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, Calendar, MapPin, Users, Shield, Trash2, Edit3, Plus, CheckCircle, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client'; // Adjust to your Supabase client import
 import { useToast } from '@/hooks/use-toast';
+import { createFileRoute } from '@tanstack/react-router';
+import Tournaments from '@/pages/Tournaments'; // Adjust path to where you saved the component
+
+export const Route = createFileRoute('/tournaments')({
+  component: Tournaments,
+});
 
 export default function Tournaments() {
   const { toast } = useToast();
