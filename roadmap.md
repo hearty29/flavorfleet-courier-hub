@@ -3,6 +3,7 @@
 - [x] Build rider verification page and navigation with live upload states.
 - [x] Test file rules (6 tests passed) and verify signed-out access requires sign-in.
 - [ ] Verify both uploads while signed in (blocked: no requesting-user account/session available; user must sign in to the preview).
-- [ ] Require rider profile photos for applications and acceptance.
-- [ ] Require private delivery proof before completing an order; show rider photos and delivery receipts.
-- [ ] Test photo requirements and signed-in delivery flow.
+- [x] Require rider profile photos for applications and acceptance.
+- [x] Require private delivery proof before completing an order; show rider photos and delivery receipts.
+- [x] Test photo requirements (11 photo/name tests and 1 routing test passed; live sign-in gate verified).
+- [ ] Verify signed-in acceptance, proof upload, completion and customer readback (blocked: requesting user has no matching app account/session; sign in to the preview).
