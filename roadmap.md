@@ -7,3 +7,4 @@
 - [x] Require private delivery proof before completing an order; show rider photos and delivery receipts.
 - [x] Test photo requirements (11 photo/name tests and 1 routing test passed; live sign-in gate verified).
 - [ ] Verify signed-in acceptance, proof upload, completion and customer readback (blocked: requesting user has no matching app account/session; sign in to the preview).
+- [ ] Fix photo saving for riders without profile records and restore missing profile access grants.
