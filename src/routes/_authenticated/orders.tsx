@@ -9,6 +9,8 @@ import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { loadAssignedRider } from "@/lib/order-rider";
+import { signedProfilePhotoUrl } from "@/lib/verification";
+import { DeliveryProofImage } from "@/components/DeliveryProof";
 
 export const Route = createFileRoute("/_authenticated/orders")({
   head: () => ({
@@ -89,22 +91,27 @@ function AssignedRider({ order, customerId }: {
   order: { id: string; rider_id: string | null };
   customerId: string | undefined;
 }) {
-  const { data: riderName, isPending, isError } = useQuery({
+  const { data: rider, isPending, isError } = useQuery({
     queryKey: ["order-rider", customerId, order.id, order.rider_id],
     enabled: Boolean(customerId && order.rider_id),
-    queryFn: () => loadAssignedRider(order, (orderId) =>
-      supabase.rpc("order_rider", { _order: orderId })),
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const result = await supabase.rpc("order_rider", { _order: order.id });
+      const name = await loadAssignedRider(order, () => Promise.resolve(result));
+      const photo = await signedProfilePhotoUrl(result.data?.[0]?.profile_image_url ?? null);
+      return { name, photo };
+    },
   });
 
   if (!order.rider_id) return null;
 
   return (
     <div className="mt-4 flex items-center gap-3 border-y border-border py-3">
-      <Bike className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      {rider?.photo ? <img src={rider.photo} alt="Your delivery rider" className="size-12 shrink-0 rounded-full border object-cover" /> : <Bike className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />}
       <div className="min-w-0" aria-live="polite">
         <p className="text-xs text-muted-foreground">Your delivery rider</p>
         <p className="break-words text-sm font-semibold">
-          {isPending ? "Loading rider…" : isError ? "Rider details unavailable" : riderName || "Rider assigned"}
+          {isPending ? "Loading rider…" : isError ? "Rider details unavailable" : rider?.name || "Rider assigned"}
         </p>
       </div>
     </div>
@@ -182,6 +189,7 @@ function Orders() {
             {/* Live Visual Tracker */}
             <OrderTracker status={o.status} />
             <AssignedRider order={o} customerId={uid} />
+            <DeliveryProofImage path={o.proof_of_delivery_path} />
 
             <ul className="mt-4 divide-y divide-border/40 text-sm">
               {o.order_items.map((it) => (

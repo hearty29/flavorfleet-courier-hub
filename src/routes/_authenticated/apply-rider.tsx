@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RiderProfilePhoto, riderPhotoQuery } from "@/components/RiderProfilePhoto";
+import { requireRiderPhoto } from "@/lib/delivery-photos";
 
 export const Route = createFileRoute("/_authenticated/apply-rider")({
   head: () => ({
@@ -33,6 +35,7 @@ function ApplyRider() {
   const [busy, setBusy] = useState(false);
   
   const uid = session?.user?.id;
+  const { data: photo } = useQuery(riderPhotoQuery(uid));
 
   const { data: apps = [], isLoading, isError } = useQuery({
     queryKey: ["my-app", uid],
@@ -68,6 +71,7 @@ function ApplyRider() {
     setBusy(true);
 
     try {
+      requireRiderPhoto(Boolean(photo?.hasPhoto));
       const { error } = await supabase.from("rider_applications").insert({
         user_id: uid,
         full_name: String(f.get("full_name") || ""),
@@ -105,9 +109,7 @@ function ApplyRider() {
             Deliver hot meals around your neighborhood and earn on your own schedule.
           </p>
           {session && (
-            <Button asChild variant="outline" className="mt-4">
-        
-            </Button>
+            <RiderProfilePhoto userId={session.user.id} />
           )}
           <ul className="mt-6 space-y-3">
             <li className="flex gap-3"><Clock className="text-primary" /> Choose your own hours</li>
@@ -181,7 +183,7 @@ function ApplyRider() {
                 <Label htmlFor="ex">Experience (optional)</Label>
                 <Textarea id="ex" name="experience" />
               </div>
-              <Button className="w-full" disabled={busy}>
+              <Button className="w-full" disabled={busy || !photo?.hasPhoto}>
                 {busy ? "Submitting..." : "Submit application"}
               </Button>
             </form>

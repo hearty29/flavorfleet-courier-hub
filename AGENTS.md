@@ -17,3 +17,5 @@
 - Customer order tracking resolves assigned rider names through the authorized order_rider function, keyed by order and rider ID, rather than broadening profile visibility.
 - Rider identification fields live in owner/admin-readable rider_verifications, separate from broadly rider-readable profiles, to keep documents private; owner writes only submit pending verification and never grant roles.
 - Verification uploads use unique owner-prefixed storage paths and file validation; profile URLs are persisted while signed owner URLs support workspace-blocked public buckets.
+- Rider photo eligibility is validated against stored objects by database triggers/RPCs; delivery completion uses rider_complete_delivery with an order-scoped private storage path and a trigger that also guards admin updates, so UI bypasses cannot skip mandatory photos.
+- Reusable rider photo and delivery proof controls share owner-prefixed storage helpers; order card components remain outside page renders so refetches do not reset in-progress uploads.
