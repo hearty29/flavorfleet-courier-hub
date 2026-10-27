@@ -41,6 +41,13 @@ export function SiteHeader() {
             <span className="ml-1.5 hidden font-medium sm:inline">Pickleball</span>
           </Link>
         </Button>
+        {/* Tournaments Tab */}
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/tournaments" aria-label="Tournaments & Brackets">
+            <Swords className="h-4 w-4" />
+            <span className="ml-1.5 hidden font-medium sm:inline">Tournaments</span>
+          </Link>
+        </Button>
 
         {roles.includes("admin") && (
           <Button asChild variant="ghost" size="sm"><Link to="/admin"><Shield /> <span className="hidden sm:inline">Admin</span></Link></Button>
