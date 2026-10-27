@@ -12,12 +12,15 @@ export const riderPhotoQuery = (userId: string | undefined) => ({
   queryFn: async () => {
     if (!userId) return { hasPhoto: false, url: null };
     const [profile, saved] = await Promise.all([
-      supabase.from("profiles").select("profile_image_url").eq("id", userId).single(),
+      supabase.from("profiles").select("profile_image_url").eq("id", userId).maybeSingle(),
       supabase.rpc("has_rider_photo", { _user: userId }),
     ]);
     if (profile.error) throw profile.error;
     if (saved.error) throw saved.error;
-    return { hasPhoto: saved.data, url: await signedProfilePhotoUrl(profile.data.profile_image_url) };
+    return {
+      hasPhoto: Boolean(saved.data),
+      url: await signedProfilePhotoUrl(profile.data?.profile_image_url ?? null),
+    };
   },
 });
 
@@ -39,7 +42,15 @@ export function RiderProfilePhoto({ userId }: { userId: string }) {
       if (result.error) throw result.error;
       uploaded = true;
       const { data: url } = supabase.storage.from("profile-pictures").getPublicUrl(path);
-      const saved = await supabase.from("profiles").update({ profile_image_url: url.publicUrl }).eq("id", userId).select("id").single();
+const saved = await supabase
+  .from("profiles")
+  .upsert(
+    { id: userId, profile_image_url: url.publicUrl },
+    { onConflict: "id" }
+  )
+  .select("id")
+  .single();
+
       if (saved.error) throw saved.error;
       await Promise.all([qc.invalidateQueries({ queryKey: ["rider-photo", userId] }), qc.invalidateQueries({ queryKey: ["verification", userId] }), qc.invalidateQueries({ queryKey: ["order-rider"] })]);
       toast.success("Profile picture saved");
