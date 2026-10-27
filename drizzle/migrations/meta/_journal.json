@@ -36,6 +36,13 @@
       "when": 1792977230737,
       "tag": "0004_resolve_order_rider_from_application",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793064212923,
+      "tag": "0005_require_rider_photo_and_delivery_proof",
+      "breakpoints": true
     }
   ]
 }
