@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DeliveryProofImage } from "@/components/DeliveryProof";
 
 type MenuItem = Database["public"]["Tables"]["menu_items"]["Row"];
 type OrderStatus = Database["public"]["Enums"]["order_status"];
@@ -237,6 +238,7 @@ function OrdersTab() {
                 {o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
               </p>
               {o.notes && <p className="text-sm text-muted-foreground">Note: {o.notes}</p>}
+              <DeliveryProofImage path={o.proof_of_delivery_path} />
               <p className="text-xs text-muted-foreground">
                 {new Date(o.created_at).toLocaleString()} ·{" "}
                 {o.rider_id ? "Rider assigned" : "No rider yet"}

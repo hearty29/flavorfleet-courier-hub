@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      cafe_orders: {
+        Row: {
+          created_at: string | null
+          id: number
+          proof_of_delivery_url: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          proof_of_delivery_url?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          proof_of_delivery_url?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       court_bookings: {
         Row: {
           balls: boolean
@@ -192,6 +213,8 @@ export type Database = {
           notes: string | null
           payment_method: string
           phone: string
+          proof_of_delivery_path: string | null
+          proof_of_delivery_url: string | null
           rider_id: string | null
           rider_name: string | null
           rider_phone: string | null
@@ -209,6 +232,8 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           phone: string
+          proof_of_delivery_path?: string | null
+          proof_of_delivery_url?: string | null
           rider_id?: string | null
           rider_name?: string | null
           rider_phone?: string | null
@@ -226,6 +251,8 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           phone?: string
+          proof_of_delivery_path?: string | null
+          proof_of_delivery_url?: string | null
           rider_id?: string | null
           rider_name?: string | null
           rider_phone?: string | null
@@ -377,6 +404,7 @@ export type Database = {
         Args: { _court: string; _date: string }
         Returns: string[]
       }
+      has_rider_photo: { Args: { _user: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -407,6 +435,10 @@ export type Database = {
         Returns: undefined
       }
       rider_accept_order: { Args: { _order: string }; Returns: undefined }
+      rider_complete_delivery: {
+        Args: { _order: string; _proof_path: string }
+        Returns: undefined
+      }
       rider_update_status: {
         Args: {
           _order: string
