@@ -79,25 +79,25 @@ function TournamentsPage() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isAdminEditOpen, setIsAdminEditOpen] = useState(false);
 
-  // Form states
+  // Form states for Admin Settings Edit
   const [editDate, setEditDate] = useState("");
   const [editPrize, setEditPrize] = useState("");
   const [editCourts, setEditCourts] = useState("");
 
+  // Registration Form states
   const [teamName, setTeamName] = useState("");
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
   const [contact, setContact] = useState("");
   const [skill, setSkill] = useState<"Beginner" | "Intermediate" | "Advanced">("Intermediate");
 
-  // Fetch all data from Supabase
+  // Fetch all tournament data from Supabase
   const fetchData = async () => {
     try {
       setLoading(true);
 
       // Fetch Tournament Details
-      const { data: tourneyData } = await supabase
-        .from("tournaments")
+      const { data: tourneyData } = await (supabase.from("tournaments" as any) as any)
         .select("*")
         .eq("id", TOURNAMENT_ID)
         .single();
@@ -118,8 +118,7 @@ function TournamentsPage() {
       }
 
       // Fetch Teams
-      const { data: teamData } = await supabase
-        .from("tournament_teams")
+      const { data: teamData } = await (supabase.from("tournament_teams" as any) as any)
         .select("*")
         .eq("tournament_id", TOURNAMENT_ID)
         .order("created_at", { ascending: true });
@@ -138,8 +137,7 @@ function TournamentsPage() {
       }
 
       // Fetch Matches
-      const { data: matchData } = await supabase
-        .from("tournament_matches")
+      const { data: matchData } = await (supabase.from("tournament_matches" as any) as any)
         .select("*")
         .eq("tournament_id", TOURNAMENT_ID)
         .order("match_number", { ascending: true });
@@ -170,28 +168,26 @@ function TournamentsPage() {
     fetchData();
   }, []);
 
-  // Admin: Remove Team directly from Supabase
+  // Admin: Remove Team
   const handleRemoveTeam = async (teamId: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+    if (!confirm(`Are you sure you want to remove "${name}"?`)) return;
 
-    const { error } = await supabase
-      .from("tournament_teams")
+    const { error } = await (supabase.from("tournament_teams" as any) as any)
       .delete()
       .eq("id", teamId);
 
     if (error) {
       toast.error("Failed to delete team: " + error.message);
     } else {
-      toast.success(`Team "${name}" deleted successfully.`);
+      toast.success(`Team "${name}" removed successfully.`);
       setTeams((prev) => prev.filter((t) => t.id !== teamId));
     }
   };
 
-  // Admin: Save Settings to Supabase
+  // Admin: Save General Settings (Date, Prize, Courts)
   const handleSaveAdminSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase
-      .from("tournaments")
+    const { error } = await (supabase.from("tournaments" as any) as any)
       .update({
         date: editDate,
         prize_pool: editPrize,
@@ -204,15 +200,54 @@ function TournamentsPage() {
     } else {
       toast.success("Tournament details saved.");
       setTournament((prev) =>
-        prev
-          ? { ...prev, date: editDate, prizePool: editPrize, courtsText: editCourts }
-          : null
+        prev ? { ...prev, date: editDate, prizePool: editPrize, courtsText: editCourts } : null
       );
       setIsAdminEditOpen(false);
     }
   };
 
-  // Public: Register Team to Supabase
+  // Admin: Update Match Court Number
+  const handleMatchCourtChange = async (matchId: string, newCourt: string) => {
+    setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, court: newCourt } : m)));
+    
+    await (supabase.from("tournament_matches" as any) as any)
+      .update({ court: newCourt })
+      .eq("id", matchId);
+    
+    toast.success("Match court updated.");
+  };
+
+  // Admin: Update Score
+  const handleScoreChange = async (matchId: string, teamNum: 1 | 2, delta: number) => {
+    let targetMatch = matches.find((m) => m.id === matchId);
+    if (!targetMatch) return;
+
+    const s1 = teamNum === 1 ? Math.max(0, targetMatch.score1 + delta) : targetMatch.score1;
+    const s2 = teamNum === 2 ? Math.max(0, targetMatch.score2 + delta) : targetMatch.score2;
+
+    setMatches((prev) =>
+      prev.map((m) => (m.id === matchId ? { ...m, score1: s1, score2: s2, status: "live" } : m))
+    );
+
+    await (supabase.from("tournament_matches" as any) as any)
+      .update({ score1: s1, score2: s2, status: "live" })
+      .eq("id", matchId);
+  };
+
+  // Admin: Declare Winner
+  const handleDeclareWinner = async (matchId: string, winningTeamId: string) => {
+    setMatches((prev) =>
+      prev.map((m) => (m.id === matchId ? { ...m, winnerId: winningTeamId, status: "finished" } : m))
+    );
+
+    await (supabase.from("tournament_matches" as any) as any)
+      .update({ winner_id: winningTeamId, status: "finished" })
+      .eq("id", matchId);
+
+    toast.success("Match completed! Winner advanced.");
+  };
+
+  // Register Team
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamName.trim() || !player1.trim() || !contact.trim()) {
@@ -221,7 +256,7 @@ function TournamentsPage() {
     }
 
     if (teams.length >= 8) {
-      toast.error("Tournament is full!");
+      toast.error("Tournament is currently full (8/8 teams).");
       setIsRegisterOpen(false);
       return;
     }
@@ -236,18 +271,18 @@ function TournamentsPage() {
       skill_level: skill,
     };
 
-    const { error } = await supabase.from("tournament_teams").insert([newTeam]);
+    const { error } = await (supabase.from("tournament_teams" as any) as any).insert([newTeam]);
 
     if (error) {
       toast.error("Registration failed: " + error.message);
     } else {
-      toast.success(`Team "${newTeam.name}" registered!`);
+      toast.success(`Team "${newTeam.name}" registered successfully!`);
       setIsRegisterOpen(false);
       setTeamName("");
       setPlayer1("");
       setPlayer2("");
       setContact("");
-      fetchData(); // Refresh list
+      fetchData();
     }
   };
 
@@ -325,7 +360,7 @@ function TournamentsPage() {
                 <PlusCircle className="h-4 w-4" /> Register Team (₱{tournament?.entryFee})
               </Button>
               {isAdminUser && (
-                <Button variant="outline" size="sm" onClick={() => setIsAdminEditOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => setIsAdminEditOpen(true)} title="Edit Details">
                   <Settings className="h-4 w-4" />
                 </Button>
               )}
@@ -353,8 +388,67 @@ function TournamentsPage() {
         </div>
       )}
 
-      {/* Registered Teams Directory with Admin Remove */}
+      {/* Elimination Bracket Board */}
       <section className="mx-auto max-w-6xl px-4 pt-8">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-foreground">Live Elimination Bracket</h2>
+          <span className="text-xs text-muted-foreground">8 Teams • Single Elimination</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-4">
+            <div className="rounded-lg bg-primary/10 px-3 py-1.5 text-center text-xs font-bold uppercase tracking-wider text-primary">
+              Round 1 • Quarterfinals
+            </div>
+            {enrichedMatches.filter((m) => m.round === 1).map((match) => (
+              <MatchCard 
+                key={match.id} 
+                match={match} 
+                isAdmin={isAdminUser}
+                onScoreChange={handleScoreChange}
+                onDeclareWinner={handleDeclareWinner}
+                onCourtChange={handleMatchCourtChange}
+              />
+            ))}
+          </div>
+
+          <div className="space-y-4 lg:pt-12">
+            <div className="rounded-lg bg-primary/10 px-3 py-1.5 text-center text-xs font-bold uppercase tracking-wider text-primary">
+              Round 2 • Semifinals
+            </div>
+            {enrichedMatches.filter((m) => m.round === 2).map((match) => (
+              <MatchCard 
+                key={match.id} 
+                match={match} 
+                isAdmin={isAdminUser}
+                onScoreChange={handleScoreChange}
+                onDeclareWinner={handleDeclareWinner}
+                onCourtChange={handleMatchCourtChange}
+              />
+            ))}
+          </div>
+
+          <div className="space-y-4 lg:pt-28">
+            <div className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-center text-xs font-bold uppercase tracking-wider text-amber-700">
+              Championship Final 🏆
+            </div>
+            {enrichedMatches.filter((m) => m.round === 3).map((match) => (
+              <MatchCard 
+                key={match.id} 
+                match={match} 
+                isAdmin={isAdminUser}
+                isFinal
+                onScoreChange={handleScoreChange}
+                onDeclareWinner={handleDeclareWinner}
+                onCourtChange={handleMatchCourtChange}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Registered Teams Directory with Admin Remove */}
+      <section className="mx-auto max-w-6xl px-4 pt-12">
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-bold text-foreground">Registered Teams ({teams.length}/8)</h3>
@@ -498,6 +592,19 @@ function TournamentsPage() {
                 />
               </div>
 
+              <div>
+                <label className="text-xs font-semibold text-foreground">Skill Division</label>
+                <select
+                  value={skill}
+                  onChange={(e) => setSkill(e.target.value as any)}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="Beginner">Beginner (1.0 - 2.5)</option>
+                  <option value="Intermediate">Intermediate (3.0 - 3.5)</option>
+                  <option value="Advanced">Advanced (4.0+)</option>
+                </select>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setIsRegisterOpen(false)}>
                   Cancel
@@ -509,5 +616,86 @@ function TournamentsPage() {
         </div>
       )}
     </main>
+  );
+}
+
+interface MatchCardProps {
+  match: Match;
+  isAdmin: boolean;
+  isFinal?: boolean;
+  onScoreChange: (matchId: string, teamNum: 1 | 2, delta: number) => void;
+  onDeclareWinner: (matchId: string, winningTeamId: string) => void;
+  onCourtChange: (matchId: string, newCourt: string) => void;
+}
+
+function MatchCard({ match, isAdmin, isFinal, onScoreChange, onDeclareWinner, onCourtChange }: MatchCardProps) {
+  const isFinished = match.status === "finished";
+  const isLive = match.status === "live";
+
+  return (
+    <div className={`relative rounded-xl border bg-card p-4 shadow-sm transition-all ${isFinal ? "border-amber-400/50 bg-gradient-to-b from-amber-500/5 to-card" : ""}`}>
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <span className="flex items-center gap-1 font-semibold text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 text-primary" /> {match.timeSlot}
+        </span>
+        <div className="flex items-center gap-1">
+          <MapPin className="h-3.5 w-3.5 text-primary" />
+          {isAdmin ? (
+            <input
+              type="text"
+              defaultValue={match.court}
+              onBlur={(e) => onCourtChange(match.id, e.target.value)}
+              className="w-24 rounded border bg-transparent px-1 py-0.5 text-[11px] font-medium outline-none focus:ring-1 focus:ring-primary"
+            />
+          ) : (
+            <span className="text-muted-foreground">{match.court}</span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className={`flex items-center justify-between rounded-lg border p-2.5 text-xs transition-colors ${match.winnerId && match.winnerId === match.team1?.id ? "border-emerald-500 bg-emerald-500/10 font-bold" : "bg-muted/30"}`}>
+          <div className="flex items-center gap-2 truncate">
+            <span className="font-semibold text-foreground truncate">{match.team1?.name || "TBA (Waiting)"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold">{match.score1}</span>
+            {isAdmin && !isFinished && match.team1 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => onScoreChange(match.id, 1, -1)} className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold hover:bg-muted-foreground/20">-</button>
+                <button onClick={() => onScoreChange(match.id, 1, 1)} className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/30">+</button>
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => onDeclareWinner(match.id, match.team1!.id)}>Win</Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`flex items-center justify-between rounded-lg border p-2.5 text-xs transition-colors ${match.winnerId && match.winnerId === match.team2?.id ? "border-emerald-500 bg-emerald-500/10 font-bold" : "bg-muted/30"}`}>
+          <div className="flex items-center gap-2 truncate">
+            <span className="font-semibold text-foreground truncate">{match.team2?.name || "TBA (Waiting)"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold">{match.score2}</span>
+            {isAdmin && !isFinished && match.team2 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => onScoreChange(match.id, 2, -1)} className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold hover:bg-muted-foreground/20">-</button>
+                <button onClick={() => onScoreChange(match.id, 2, 1)} className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/30">+</button>
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => onDeclareWinner(match.id, match.team2!.id)}>Win</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between border-t pt-2.5 text-[10px]">
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${isFinished ? "bg-emerald-500/10 text-emerald-600" : isLive ? "bg-primary/10 text-primary animate-pulse" : "bg-muted text-muted-foreground"}`}>
+          {isFinished ? <CheckCircle2 className="h-3 w-3" /> : isLive ? <ShieldAlert className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+          {isFinished ? "Completed" : isLive ? "Live Now" : "Upcoming"}
+        </span>
+        {match.winnerId && (
+          <span className="font-semibold text-emerald-600">Winner decided</span>
+        )}
+      </div>
+    </div>
   );
 }
