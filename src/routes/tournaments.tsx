@@ -14,7 +14,10 @@ import {
   RefreshCw, 
   X,
   Medal,
-  ChevronRight
+  ChevronRight,
+  Settings,
+  Trash2,
+  Edit2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -63,6 +66,7 @@ interface Tournament {
   date: string;
   entryFee: number;
   prizePool: string;
+  courtsText: string;
   status: "Registration Open" | "In Progress" | "Completed";
   format: string;
   teams: Team[];
@@ -77,6 +81,7 @@ const INITIAL_TOURNAMENT: Tournament = {
   date: "Saturday, Nov 14, 2026 • 8:00 AM",
   entryFee: 500,
   prizePool: "₱10,000 Cash + Free Court Vouchers",
+  courtsText: "Roadside Courts 1–4",
   status: "In Progress",
   format: "8-Team Single Elimination",
   teams: [
@@ -116,6 +121,14 @@ function TournamentsPage() {
   });
 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isAdminEditOpen, setIsAdminEditOpen] = useState(false);
+
+  // Form states for Admin Settings Edit
+  const [editDate, setEditDate] = useState(tournament.date);
+  const [editPrize, setEditPrize] = useState(tournament.prizePool);
+  const [editCourts, setEditCourts] = useState(tournament.courtsText || "Roadside Courts 1–4");
+
+  // Registration Form state
   const [teamName, setTeamName] = useState("");
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
@@ -160,6 +173,40 @@ function TournamentsPage() {
   const finalMatch = enrichedMatches.find((m) => m.id === "m7");
   const champion = getTeam(finalMatch?.winnerId);
 
+  // Admin: Remove Team
+  const handleRemoveTeam = (teamId: string, name: string) => {
+    if (confirm(`Are you sure you want to remove "${name}" from the tournament?`)) {
+      setTournament((prev) => ({
+        ...prev,
+        teams: prev.teams.filter((t) => t.id !== teamId),
+      }));
+      toast.success(`Team "${name}" removed.`);
+    }
+  };
+
+  // Admin: Save General Settings (Date, Prize, Courts)
+  const handleSaveAdminSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    setTournament((prev) => ({
+      ...prev,
+      date: editDate,
+      prizePool: editPrize,
+      courtsText: editCourts,
+    }));
+    toast.success("Tournament details updated successfully.");
+    setIsAdminEditOpen(false);
+  };
+
+  // Admin: Update Specific Match Court
+  const handleMatchCourtChange = (matchId: string, newCourt: string) => {
+    setTournament((prev) => ({
+      ...prev,
+      matches: prev.matches.map((m) => (m.id === matchId ? { ...m, court: newCourt } : m)),
+    }));
+    toast.success("Match court updated.");
+  };
+
+  // Team Registration
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamName.trim() || !player1.trim() || !contact.trim()) {
@@ -252,7 +299,7 @@ function TournamentsPage() {
                   <Calendar className="h-4 w-4 text-primary" /> {tournament.date}
                 </span>
                 <span className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4 text-primary" /> Roadside Courts 1–4
+                  <MapPin className="h-4 w-4 text-primary" /> {tournament.courtsText || "Roadside Courts 1–4"}
                 </span>
                 <span className="flex items-center gap-1">
                   <Trophy className="h-4 w-4 text-amber-500" /> Prize: {tournament.prizePool}
@@ -265,9 +312,14 @@ function TournamentsPage() {
                 <PlusCircle className="h-4 w-4" /> Register Team (₱{tournament.entryFee})
               </Button>
               {isAdminUser && (
-                <Button variant="outline" size="sm" onClick={handleResetTournament} title="Reset Bracket">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setIsAdminEditOpen(true)} title="Edit Details">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleResetTournament} title="Reset Bracket">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -310,6 +362,7 @@ function TournamentsPage() {
                 isAdmin={isAdminUser}
                 onScoreChange={handleScoreChange}
                 onDeclareWinner={handleDeclareWinner}
+                onCourtChange={handleMatchCourtChange}
               />
             ))}
           </div>
@@ -325,6 +378,7 @@ function TournamentsPage() {
                 isAdmin={isAdminUser}
                 onScoreChange={handleScoreChange}
                 onDeclareWinner={handleDeclareWinner}
+                onCourtChange={handleMatchCourtChange}
               />
             ))}
           </div>
@@ -341,12 +395,14 @@ function TournamentsPage() {
                 isFinal
                 onScoreChange={handleScoreChange}
                 onDeclareWinner={handleDeclareWinner}
+                onCourtChange={handleMatchCourtChange}
               />
             ))}
           </div>
         </div>
       </section>
 
+      {/* Registered Teams Directory with Admin Remove */}
       <section className="mx-auto max-w-6xl px-4 pt-12">
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
@@ -356,19 +412,91 @@ function TournamentsPage() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
             {tournament.teams.map((team, idx) => (
-              <div key={team.id} className="rounded-lg border bg-muted/30 p-3 text-xs">
+              <div key={team.id} className="relative rounded-lg border bg-muted/30 p-3 text-xs">
                 <div className="flex items-center justify-between font-bold text-foreground">
                   <span>#{idx + 1} {team.name}</span>
                   <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{team.skillLevel}</span>
                 </div>
                 <p className="mt-1.5 text-muted-foreground">{team.player1} & {team.player2}</p>
                 <p className="text-[10px] text-muted-foreground/80 mt-0.5">📞 {team.contact}</p>
+
+                {isAdminUser && (
+                  <button
+                    onClick={() => handleRemoveTeam(team.id, team.name)}
+                    className="absolute bottom-2 right-2 rounded p-1 text-red-500 hover:bg-red-500/10"
+                    title="Remove Team"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Admin Settings Modal (Date, Prize, Courts) */}
+      {isAdminEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-foreground">Edit Tournament Info</h3>
+              <button onClick={() => setIsAdminEditOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAdminSettings} className="mt-4 space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-foreground">Date & Schedule</label>
+                <input
+                  type="text"
+                  required
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. Saturday, Nov 14, 2026 • 8:00 AM"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground">Prize Pool</label>
+                <input
+                  type="text"
+                  required
+                  value={editPrize}
+                  onChange={(e) => setEditPrize(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. ₱10,000 Cash + Free Court Vouchers"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground">Venue / Courts Assigned</label>
+                <input
+                  type="text"
+                  required
+                  value={editCourts}
+                  onChange={(e) => setEditCourts(e.target.value)}
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="e.g. Roadside Courts 1–4"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsAdminEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Registration Modal */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
@@ -467,9 +595,10 @@ interface MatchCardProps {
   isFinal?: boolean;
   onScoreChange: (matchId: string, teamNum: 1 | 2, delta: number) => void;
   onDeclareWinner: (matchId: string, winningTeamId: string) => void;
+  onCourtChange: (matchId: string, newCourt: string) => void;
 }
 
-function MatchCard({ match, isAdmin, isFinal, onScoreChange, onDeclareWinner }: MatchCardProps) {
+function MatchCard({ match, isAdmin, isFinal, onScoreChange, onDeclareWinner, onCourtChange }: MatchCardProps) {
   const isFinished = match.status === "finished";
   const isLive = match.status === "live";
 
@@ -479,9 +608,19 @@ function MatchCard({ match, isAdmin, isFinal, onScoreChange, onDeclareWinner }: 
         <span className="flex items-center gap-1 font-semibold text-muted-foreground">
           <Clock className="h-3.5 w-3.5 text-primary" /> {match.timeSlot}
         </span>
-        <span className="flex items-center gap-1 text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 text-primary" /> {match.court}
-        </span>
+        <div className="flex items-center gap-1">
+          <MapPin className="h-3.5 w-3.5 text-primary" />
+          {isAdmin ? (
+            <input
+              type="text"
+              defaultValue={match.court}
+              onBlur={(e) => onCourtChange(match.id, e.target.value)}
+              className="w-20 rounded border bg-transparent px-1 py-0.5 text-[11px] font-medium outline-none focus:ring-1 focus:ring-primary"
+            />
+          ) : (
+            <span className="text-muted-foreground">{match.court}</span>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
