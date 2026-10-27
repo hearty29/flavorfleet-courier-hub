@@ -2,11 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Trash2, Plus, Volume2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Volume2, MessageSquare, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-import { useAuth } from "@/lib/auth";
-import { peso } from "@/lib/cart";
+import { useAuth } from "@/hooks/useAuth";
+import { peso } from "@/lib/format";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,36 +15,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DeliveryProofImage } from "@/components/DeliveryProof";
-
-type MenuItem = Database["public"]["Tables"]["menu_items"]["Row"];
-type OrderStatus = Database["public"]["Enums"]["order_status"];
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
-      { title: "Admin panel — Roadside Cafe" },
-      { name: "description", content: "Manage orders, menu and riders." },
-      { property: "og:title", content: "Admin panel — Roadside Cafe" },
-      { property: "og:description", content: "Manage orders, menu and riders." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { title: "Admin Panel — Roadside Paddles" },
+      { name: "description", content: "Manage orders, menu, riders and chat support." },
     ],
   }),
   component: Admin,
 });
 
-// Built-in chime using Web Audio API (no external audio files needed)
 function playNewOrderSound() {
   try {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
-
-    // Tone 1 (D5)
     const o1 = ctx.createOscillator();
     const g1 = ctx.createGain();
     o1.type = "sine";
@@ -57,7 +43,6 @@ function playNewOrderSound() {
     o1.start(now);
     o1.stop(now + 0.35);
 
-    // Tone 2 (A5)
     const o2 = ctx.createOscillator();
     const g2 = ctx.createGain();
     o2.type = "sine";
@@ -69,7 +54,7 @@ function playNewOrderSound() {
     o2.start(now + 0.18);
     o2.stop(now + 0.65);
   } catch (e) {
-    console.error("Audio error:", e);
+    console.error(e);
   }
 }
 
@@ -86,235 +71,205 @@ function Admin() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">Admin panel</h1>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-2"
-          onClick={() => {
-            playNewOrderSound();
-            toast.success("Sound test played!");
-          }}
-        >
-          <Volume2 className="h-4 w-4" />
-          Test Alert Chime
+        <h1 className="text-3xl font-bold">Admin Panel</h1>
+        <Button size="sm" variant="outline" className="gap-2" onClick={playNewOrderSound}>
+          <Volume2 className="h-4 w-4" /> Test Alert Chime
         </Button>
       </div>
 
       <Tabs defaultValue="orders" className="mt-6">
         <TabsList>
           <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="support">Chats & Support</TabsTrigger>
           <TabsTrigger value="menu">Menu</TabsTrigger>
-          <TabsTrigger value="riders">Rider applications</TabsTrigger>
+          <TabsTrigger value="riders">Rider Applications</TabsTrigger>
         </TabsList>
-        <TabsContent value="orders">
-          <OrdersTab />
-        </TabsContent>
-        <TabsContent value="menu">
-          <MenuTab />
-        </TabsContent>
-        <TabsContent value="riders">
-          <RidersTab />
-        </TabsContent>
+        <TabsContent value="orders"><OrdersTab /></TabsContent>
+        <TabsContent value="support"><AdminSupportTab /></TabsContent>
+        <TabsContent value="menu"><MenuTab /></TabsContent>
+        <TabsContent value="riders"><RidersTab /></TabsContent>
       </Tabs>
     </main>
   );
 }
 
-const statuses: OrderStatus[] = [
-  "pending",
-  "preparing",
-  "ready",
-  "picked_up",
-  "delivered",
-  "cancelled",
-];
+function AdminSupportTab() {
+  const { user } = useAuth();
+  const [selectedConv, setSelectedConv] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [reply, setReply] = useState("");
 
-function OrdersTab() {
-  const qc = useQueryClient();
-  const [filter, setFilter] = useState<string>("active");
-
-  const { data: orders = [] } = useQuery({
-    queryKey: ["admin-orders"],
+  const { data: convs = [], refetch } = useQuery({
+    queryKey: ["admin-chats"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, order_items(*)")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Lookup map to get the rider's registered full name
-  const { data: riderMap = {} } = useQuery({
-    queryKey: ["admin-rider-map"],
-    queryFn: async () => {
-      const [{ data: apps }, { data: profiles }] = await Promise.all([
-        supabase.from("rider_applications").select("user_id, full_name"),
-        supabase.from("profiles").select("id, full_name"),
-      ]);
-      const map: Record<string, string> = {};
-      profiles?.forEach((p) => {
-        if (p.id && p.full_name) map[p.id] = p.full_name.trim();
-      });
-      apps?.forEach((r) => {
-        if (r.user_id && r.full_name) map[r.user_id] = r.full_name.trim();
-      });
-      return map;
+      const { data } = await supabase
+        .from("chat_conversations")
+        .select("*")
+        .order("last_message_at", { ascending: false });
+      return data ?? [];
     },
   });
 
   useEffect(() => {
+    if (!selectedConv) return;
+    const fetchMsgs = async () => {
+      const { data } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("conversation_id", selectedConv.id)
+        .order("created_at", { ascending: true });
+      if (data) setMessages(data);
+    };
+    fetchMsgs();
+
     const ch = supabase
-      .channel(`admin-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            playNewOrderSound();
-            const newOrder = payload.new as { id?: string; customer_name?: string };
-            toast.info("🔔 New order received!", {
-              description: `Order #${newOrder.id ? newOrder.id.slice(0, 8) : "New"} · ${newOrder.customer_name || "Customer"}`,
-            });
-          }
-          qc.invalidateQueries({ queryKey: ["admin-orders"] });
-        }
-      )
+      .channel(`admin-conv-${selectedConv.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages", filter: `conversation_id=eq.${selectedConv.id}` }, (p) => {
+        setMessages((prev) => [...prev, p.new]);
+      })
       .subscribe();
+
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [qc]);
+  }, [selectedConv]);
 
-  const setStatus = async (id: string, status: OrderStatus) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
-    else qc.invalidateQueries({ queryKey: ["admin-orders"] });
+  const sendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reply.trim() || !user || !selectedConv) return;
+    const text = reply.trim();
+    setReply("");
+
+    await supabase.from("chat_messages").insert({
+      conversation_id: selectedConv.id,
+      sender_id: user.id,
+      sender_role: "admin",
+      sender_name: "Support Admin",
+      message: text,
+    });
+
+    await supabase.from("chat_conversations").update({
+      last_message_text: text,
+      last_message_at: new Date().toISOString(),
+    }).eq("id", selectedConv.id);
+
+    refetch();
   };
 
-  const today = orders.filter(
-    (o) => new Date(o.created_at).toDateString() === new Date().toDateString()
-  );
-  const revenue = today
-    .filter((o) => o.status === "delivered")
-    .reduce((s, o) => s + Number(o.total), 0);
-  const shown =
-    filter === "active"
-      ? orders.filter((o) => !["delivered", "cancelled"].includes(o.status))
-      : orders;
-
   return (
-    <div className="mt-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Orders today" value={String(today.length)} />
-        <Stat
-          label="Active"
-          value={String(
-            orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length
-          )}
-        />
-        <Stat label="Delivered revenue today" value={peso(revenue)} />
-      </div>
-      <div className="mt-4 flex gap-2">
-        <Button
-          size="sm"
-          variant={filter === "active" ? "default" : "secondary"}
-          onClick={() => setFilter("active")}
-        >
-          Active
-        </Button>
-        <Button
-          size="sm"
-          variant={filter === "all" ? "default" : "secondary"}
-          onClick={() => setFilter("all")}
-        >
-          All
-        </Button>
-      </div>
-      <div className="mt-4 space-y-3">
-        {!shown.length && <p className="text-muted-foreground">No orders.</p>}
-        {shown.map((o) => (
-          <article
-            key={o.id}
-            className="flex flex-wrap items-start gap-4 rounded-2xl border bg-card p-4"
+    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 border rounded-2xl overflow-hidden bg-card min-h-[550px]">
+      <div className="border-r divide-y overflow-y-auto max-h-[600px]">
+        <div className="p-3 font-semibold text-sm bg-muted/40">Active Threads ({convs.length})</div>
+        {!convs.length && <p className="p-4 text-xs text-muted-foreground">No conversations yet.</p>}
+        {convs.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setSelectedConv(c)}
+            className={`w-full p-3 text-left hover:bg-muted/50 transition-colors flex flex-col gap-1 ${
+              selectedConv?.id === c.id ? "bg-muted" : ""
+            }`}
           >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-bold">#{o.id.slice(0, 8)}</p>
-                <StatusBadge status={o.status} />
-              </div>
-              <p className="text-sm">
-                {o.customer_name} · {o.phone}
-              </p>
-              <p className="text-sm text-muted-foreground">{o.address}</p>
-              <p className="mt-1 text-sm">
-                {o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
-              </p>
-              {o.notes && <p className="text-sm text-muted-foreground">Note: {o.notes}</p>}
-              <DeliveryProofImage path={o.proof_of_delivery_path} />
-              <p className="text-xs text-muted-foreground">
-                {new Date(o.created_at).toLocaleString()} ·{" "}
-                {o.rider_id ? (
-                  <span className="font-medium text-foreground">
-                    Rider Assigned: {riderMap[o.rider_id] || "Rider assigned"}
-                  </span>
-                ) : (
-                  "No rider yet"
-                )}
-              </p>
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold">{c.type === "order" ? `Order #${c.order_id?.slice(0, 6)}` : "Support Ticket"}</span>
+              <span className="text-[10px] text-muted-foreground">{new Date(c.last_message_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <p className="text-lg font-bold">{peso(o.total)}</p>
-              <Select
-                value={o.status}
-                onValueChange={(v) => setStatus(o.id, v as OrderStatus)}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">
-                      {s.replace("_", " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </article>
+            <p className="text-xs text-muted-foreground truncate">{c.last_message_text || "Started conversation"}</p>
+          </button>
         ))}
+      </div>
+
+      <div className="md:col-span-2 flex flex-col justify-between">
+        {selectedConv ? (
+          <>
+            <div className="p-3 border-b bg-muted/30 flex justify-between items-center">
+              <div>
+                <p className="font-semibold text-sm">{selectedConv.type === "order" ? `Order Chat #${selectedConv.order_id?.slice(0, 8)}` : "Direct Support Ticket"}</p>
+                <p className="text-xs text-muted-foreground">Customer ID: {selectedConv.customer_id.slice(0, 8)}</p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[440px]">
+              {messages.map((m) => {
+                const isMe = m.sender_role === "admin";
+                return (
+                  <div key={m.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                    <span className="text-[10px] text-muted-foreground">{m.sender_name} ({m.sender_role})</span>
+                    <div className={`rounded-xl px-3 py-2 text-sm max-w-[80%] ${isMe ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      {m.message}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <form onSubmit={sendReply} className="p-3 border-t bg-muted/20 flex gap-2">
+              <Input value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Reply as Admin..." />
+              <Button type="submit" disabled={!reply.trim()}><Send className="w-4 h-4" /></Button>
+            </form>
+          </>
+        ) : (
+          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+            Select a conversation on the left to start replying.
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+const statuses = ["pending", "preparing", "ready", "picked_up", "delivered", "cancelled"];
+
+function OrdersTab() {
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState("active");
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ["admin-orders"],
+    queryFn: async () => (await supabase.from("orders").select("*").order("created_at", { ascending: false })).data ?? [],
+  });
+
+  const setStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+    if (error) toast.error(error.message);
+    else qc.invalidateQueries({ queryKey: ["admin-orders"] });
+  };
+
+  const shown = filter === "active" ? orders.filter((o) => !["delivered", "cancelled"].includes(o.status)) : orders;
+
   return (
-    <div className="rounded-2xl bg-ink p-4 text-ink-foreground">
-      <p className="text-xs opacity-70">{label}</p>
-      <p className="font-display text-xl font-bold md:text-2xl">{value}</p>
+    <div className="mt-4 space-y-3">
+      <div className="flex gap-2">
+        <Button size="sm" variant={filter === "active" ? "default" : "secondary"} onClick={() => setFilter("active")}>Active</Button>
+        <Button size="sm" variant={filter === "all" ? "default" : "secondary"} onClick={() => setFilter("all")}>All</Button>
+      </div>
+      {shown.map((o) => (
+        <article key={o.id} className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border bg-card p-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-bold">#{o.id.slice(0, 8)}</p>
+              <StatusBadge status={o.status} />
+            </div>
+            <p className="text-sm">{o.customer_name} · {o.phone}</p>
+            <p className="text-sm text-muted-foreground">{o.address}</p>
+            <p className="mt-1 text-sm font-semibold">{peso(o.total)} · {o.payment_method.toUpperCase()}</p>
+          </div>
+          <Select value={o.status} onValueChange={(v) => setStatus(o.id, v)}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {statuses.map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </article>
+      ))}
     </div>
   );
 }
 
 function MenuTab() {
   const qc = useQueryClient();
-  const [editing, setEditing] = useState<Partial<MenuItem> | null>(null);
+  const [editing, setEditing] = useState<any>(null);
   const { data: items = [] } = useQuery({
     queryKey: ["admin-menu"],
-    queryFn: async () =>
-      (await supabase.from("menu_items").select("*").order("category")).data ?? [],
+    queryFn: async () => (await supabase.from("menu_items").select("*").order("category")).data ?? [],
   });
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["admin-menu"] });
-    qc.invalidateQueries({ queryKey: ["menu"] });
-  };
 
   const save = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -330,117 +285,36 @@ function MenuTab() {
     const { error } = editing?.id
       ? await supabase.from("menu_items").update(row).eq("id", editing.id)
       : await supabase.from("menu_items").insert(row);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setEditing(null);
-    refresh();
-  };
-  const remove = async (id: string) => {
-    if (!confirm("Delete this item?")) return;
-    const { error } = await supabase.from("menu_items").delete().eq("id", id);
     if (error) toast.error(error.message);
-    else refresh();
-  };
-  const toggle = async (m: MenuItem) => {
-    await supabase.from("menu_items").update({ available: !m.available }).eq("id", m.id);
-    refresh();
+    else {
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["admin-menu"] });
+    }
   };
 
   return (
     <div className="mt-4">
-      <Button onClick={() => setEditing({ available: true })}>
-        <Plus /> Add item
-      </Button>
+      <Button onClick={() => setEditing({ available: true })}><Plus /> Add item</Button>
       <div className="mt-4 divide-y rounded-2xl border bg-card">
         {items.map((m) => (
           <div key={m.id} className="flex items-center gap-3 p-3">
-            {m.image_url ? (
-              <img src={m.image_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
-            ) : (
-              <div className="h-12 w-12 rounded-lg bg-secondary" />
-            )}
             <div className="min-w-0 flex-1">
               <p className="font-medium">{m.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {m.category} · {peso(m.price)}
-              </p>
+              <p className="text-xs text-muted-foreground">{m.category} · {peso(m.price)}</p>
             </div>
-            <Switch
-              checked={m.available}
-              onCheckedChange={() => toggle(m)}
-              aria-label="Available"
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setEditing(m)}
-              aria-label="Edit"
-            >
-              <Pencil />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => remove(m.id)}
-              aria-label="Delete"
-            >
-              <Trash2 />
-            </Button>
+            <Button size="icon" variant="ghost" onClick={() => setEditing(m)}><Pencil /></Button>
           </div>
         ))}
       </div>
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editing?.id ? "Edit item" : "New item"}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{editing?.id ? "Edit item" : "New item"}</DialogTitle></DialogHeader>
           <form onSubmit={save} className="space-y-3">
-            <div>
-              <Label htmlFor="mn">Name</Label>
-              <Input id="mn" name="name" defaultValue={editing?.name ?? ""} required />
-            </div>
-            <div>
-              <Label htmlFor="md">Description</Label>
-              <Textarea
-                id="md"
-                name="description"
-                defaultValue={editing?.description ?? ""}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="mc">Category</Label>
-                <Input
-                  id="mc"
-                  name="category"
-                  defaultValue={editing?.category ?? "Rice Meals"}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="mp">Price (₱)</Label>
-                <Input
-                  id="mp"
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  defaultValue={editing?.price ?? ""}
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="mi">Image URL</Label>
-              <Input
-                id="mi"
-                name="image_url"
-                defaultValue={editing?.image_url ?? ""}
-                placeholder="https://…"
-              />
-            </div>
+            <Input name="name" defaultValue={editing?.name ?? ""} placeholder="Name" required />
+            <Textarea name="description" defaultValue={editing?.description ?? ""} placeholder="Description" />
+            <Input name="category" defaultValue={editing?.category ?? "Rice Meals"} placeholder="Category" required />
+            <Input name="price" type="number" step="0.01" defaultValue={editing?.price ?? ""} placeholder="Price" required />
+            <Input name="image_url" defaultValue={editing?.image_url ?? ""} placeholder="Image URL" />
             <Button className="w-full">Save</Button>
           </form>
         </DialogContent>
@@ -453,58 +327,34 @@ function RidersTab() {
   const qc = useQueryClient();
   const { data: apps = [] } = useQuery({
     queryKey: ["admin-apps"],
-    queryFn: async () =>
-      (
-        await supabase
-          .from("rider_applications")
-          .select("*")
-          .order("created_at", { ascending: false })
-      ).data ?? [],
+    queryFn: async () => (await supabase.from("rider_applications").select("*").order("created_at", { ascending: false })).data ?? [],
   });
+
   const review = async (id: string, approve: boolean) => {
-    const { error } = await supabase.rpc("review_rider_application", {
-      _app: id,
-      _approve: approve,
-    });
+    const { error } = await supabase.rpc("review_rider_application", { _app: id, _approve: approve });
     if (error) toast.error(error.message);
     else {
       toast.success(approve ? "Rider approved" : "Application rejected");
       qc.invalidateQueries({ queryKey: ["admin-apps"] });
     }
   };
+
   return (
     <div className="mt-4 space-y-3">
       {!apps.length && <p className="text-muted-foreground">No applications yet.</p>}
       {apps.map((a) => (
-        <article
-          key={a.id}
-          className="flex flex-wrap items-start gap-4 rounded-2xl border bg-card p-4"
-        >
-          <div className="flex-1">
+        <article key={a.id} className="flex items-start justify-between gap-4 rounded-2xl border bg-card p-4">
+          <div>
             <div className="flex items-center gap-2">
               <p className="font-bold">{a.full_name}</p>
               <StatusBadge status={a.status} />
             </div>
-            <p className="text-sm">
-              {a.phone} · {a.address}
-            </p>
-            <p className="text-sm capitalize text-muted-foreground">
-              {a.vehicle_type}
-              {a.plate_number ? ` · ${a.plate_number}` : ""} · License {a.license_number}
-            </p>
-            {a.experience && <p className="mt-1 text-sm">{a.experience}</p>}
-            <p className="text-xs text-muted-foreground">
-              {new Date(a.created_at).toLocaleString()}
-            </p>
+            <p className="text-sm">{a.phone} · {a.address}</p>
           </div>
           {a.status === "pending" && (
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => review(a.id, true)}>
-                Approve
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => review(a.id, false)}>
-                Reject
-              </Button>
+              <Button size="sm" onClick={() => review(a.id, true)}>Approve</Button>
+              <Button size="sm" variant="outline" onClick={() => review(a.id, false)}>Reject</Button>
             </div>
           )}
         </article>
