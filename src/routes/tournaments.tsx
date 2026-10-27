@@ -13,13 +13,11 @@ import {
   X,
   Medal,
   Settings,
-  Trash2,
-  Loader2
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/tournaments")({
   head: () => ({
@@ -62,26 +60,63 @@ interface Tournament {
   prizePool: string;
   courtsText: string;
   status: string;
+  teams: Team[];
+  matches: Match[];
 }
 
-const TOURNAMENT_ID = "roadside-open-2026";
+const STORAGE_KEY = "roadside_tournament_prod_v2";
+
+const INITIAL_TOURNAMENT: Tournament = {
+  id: "roadside-open-2026",
+  title: "Roadside Open Doubles Championship",
+  date: "Saturday, Nov 14, 2026 • 8:00 AM",
+  entryFee: 500,
+  prizePool: "₱10,000 Cash + Free Court Vouchers",
+  courtsText: "Roadside Courts 1–4",
+  status: "In Progress",
+  teams: [
+    { id: "t1", name: "Kitchen Smashers", player1: "Jessie C.", player2: "Mark R.", contact: "0917-111-2222", skillLevel: "Advanced" },
+    { id: "t2", name: "Dink Masters", player1: "Carlos T.", player2: "Benjie S.", contact: "0918-222-3333", skillLevel: "Intermediate" },
+    { id: "t3", name: "Drop Shot Kings", player1: "Arnel M.", player2: "Dennis P.", contact: "0919-333-4444", skillLevel: "Intermediate" },
+    { id: "t4", name: "Baseline Bandits", player1: "Joel V.", player2: "Paolo D.", contact: "0920-444-5555", skillLevel: "Advanced" },
+    { id: "t5", name: "Spin Doctors", player1: "Ryan G.", player2: "Kevin L.", contact: "0921-555-6666", skillLevel: "Beginner" },
+    { id: "t6", name: "Erne Attack", player1: "Mico F.", player2: "Leo K.", contact: "0922-666-7777", skillLevel: "Intermediate" },
+    { id: "t7", name: "Volley Vipers", player1: "Allan N.", player2: "Chris O.", contact: "0923-777-8888", skillLevel: "Intermediate" },
+    { id: "t8", name: "Net Ninjas", player1: "Rico B.", player2: "Dave H.", contact: "0924-888-9999", skillLevel: "Advanced" },
+  ],
+  matches: [
+    { id: "m1", round: 1, matchNumber: 1, score1: 11, score2: 7, court: "Court 1", timeSlot: "08:00 AM", status: "finished", winnerId: "t1" },
+    { id: "m2", round: 1, matchNumber: 2, score1: 8, score2: 11, court: "Court 2", timeSlot: "08:00 AM", status: "finished", winnerId: "t4" },
+    { id: "m3", round: 1, matchNumber: 3, score1: 11, score2: 9, court: "Court 3", timeSlot: "09:00 AM", status: "finished", winnerId: "t6" },
+    { id: "m4", round: 1, matchNumber: 4, score1: 5, score2: 11, court: "Court 4", timeSlot: "09:00 AM", status: "finished", winnerId: "t8" },
+    { id: "m5", round: 2, matchNumber: 5, score1: 10, score2: 9, court: "Court 1", timeSlot: "10:30 AM", status: "live" },
+    { id: "m6", round: 2, matchNumber: 6, score1: 0, score2: 0, court: "Court 2", timeSlot: "10:30 AM", status: "upcoming" },
+    { id: "m7", round: 3, matchNumber: 7, score1: 0, score2: 0, court: "Court 1 — Championship", timeSlot: "01:00 PM", status: "upcoming" },
+  ],
+};
 
 function TournamentsPage() {
   const { roles } = useAuth();
   const isAdminUser = roles.includes("admin");
 
-  const [loading, setLoading] = useState(true);
-  const [tournament, setTournament] = useState<Tournament | null>(null);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [tournament, setTournament] = useState<Tournament>(() => {
+    if (typeof window === "undefined") return INITIAL_TOURNAMENT;
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (!cached) return INITIAL_TOURNAMENT;
+    try {
+      return JSON.parse(cached);
+    } catch {
+      return INITIAL_TOURNAMENT;
+    }
+  });
 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isAdminEditOpen, setIsAdminEditOpen] = useState(false);
 
   // Form states for Admin Settings Edit
-  const [editDate, setEditDate] = useState("");
-  const [editPrize, setEditPrize] = useState("");
-  const [editCourts, setEditCourts] = useState("");
+  const [editDate, setEditDate] = useState(tournament.date);
+  const [editPrize, setEditPrize] = useState(tournament.prizePool);
+  const [editCourts, setEditCourts] = useState(tournament.courtsText);
 
   // Registration Form states
   const [teamName, setTeamName] = useState("");
@@ -90,223 +125,123 @@ function TournamentsPage() {
   const [contact, setContact] = useState("");
   const [skill, setSkill] = useState<"Beginner" | "Intermediate" | "Advanced">("Intermediate");
 
-  // Fetch all tournament data from Supabase
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch Tournament Details
-      const { data: tourneyData } = await (supabase.from("tournaments" as any) as any)
-        .select("*")
-        .eq("id", TOURNAMENT_ID)
-        .single();
-
-      if (tourneyData) {
-        setTournament({
-          id: tourneyData.id,
-          title: tourneyData.title,
-          date: tourneyData.date,
-          entryFee: Number(tourneyData.entry_fee),
-          prizePool: tourneyData.prize_pool,
-          courtsText: tourneyData.courts_text,
-          status: tourneyData.status,
-        });
-        setEditDate(tourneyData.date);
-        setEditPrize(tourneyData.prize_pool);
-        setEditCourts(tourneyData.courts_text);
-      }
-
-      // Fetch Teams
-      const { data: teamData } = await (supabase.from("tournament_teams" as any) as any)
-        .select("*")
-        .eq("tournament_id", TOURNAMENT_ID)
-        .order("created_at", { ascending: true });
-
-      if (teamData) {
-        setTeams(
-          teamData.map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            player1: t.player1,
-            player2: t.player2,
-            contact: t.contact,
-            skillLevel: t.skill_level,
-          }))
-        );
-      }
-
-      // Fetch Matches
-      const { data: matchData } = await (supabase.from("tournament_matches" as any) as any)
-        .select("*")
-        .eq("tournament_id", TOURNAMENT_ID)
-        .order("match_number", { ascending: true });
-
-      if (matchData) {
-        setMatches(
-          matchData.map((m: any) => ({
-            id: m.id,
-            round: m.round,
-            matchNumber: m.match_number,
-            score1: m.score1,
-            score2: m.score2,
-            court: m.court,
-            timeSlot: m.time_slot,
-            status: m.status,
-            winnerId: m.winner_id,
-          }))
-        );
-      }
-    } catch (err: any) {
-      console.error("Error loading tournament data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
-  }, []);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament));
+  }, [tournament]);
 
   // Admin: Remove Team
-  const handleRemoveTeam = async (teamId: string, name: string) => {
+  const handleRemoveTeam = (teamId: string, name: string) => {
     if (!confirm(`Are you sure you want to remove "${name}"?`)) return;
 
-    const { error } = await (supabase.from("tournament_teams" as any) as any)
-      .delete()
-      .eq("id", teamId);
-
-    if (error) {
-      toast.error("Failed to delete team: " + error.message);
-    } else {
-      toast.success(`Team "${name}" removed successfully.`);
-      setTeams((prev) => prev.filter((t) => t.id !== teamId));
-    }
+    setTournament((prev) => ({
+      ...prev,
+      teams: prev.teams.filter((t) => t.id !== teamId),
+    }));
+    toast.success(`Team "${name}" removed successfully.`);
   };
 
   // Admin: Save General Settings (Date, Prize, Courts)
-  const handleSaveAdminSettings = async (e: React.FormEvent) => {
+  const handleSaveAdminSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await (supabase.from("tournaments" as any) as any)
-      .update({
-        date: editDate,
-        prize_pool: editPrize,
-        courts_text: editCourts,
-      })
-      .eq("id", TOURNAMENT_ID);
-
-    if (error) {
-      toast.error("Failed to update: " + error.message);
-    } else {
-      toast.success("Tournament details saved.");
-      setTournament((prev) =>
-        prev ? { ...prev, date: editDate, prizePool: editPrize, courtsText: editCourts } : null
-      );
-      setIsAdminEditOpen(false);
-    }
+    setTournament((prev) => ({
+      ...prev,
+      date: editDate,
+      prizePool: editPrize,
+      courtsText: editCourts,
+    }));
+    toast.success("Tournament details saved.");
+    setIsAdminEditOpen(false);
   };
 
   // Admin: Update Match Court Number
-  const handleMatchCourtChange = async (matchId: string, newCourt: string) => {
-    setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, court: newCourt } : m)));
-    
-    await (supabase.from("tournament_matches" as any) as any)
-      .update({ court: newCourt })
-      .eq("id", matchId);
-    
+  const handleMatchCourtChange = (matchId: string, newCourt: string) => {
+    setTournament((prev) => ({
+      ...prev,
+      matches: prev.matches.map((m) => (m.id === matchId ? { ...m, court: newCourt } : m)),
+    }));
     toast.success("Match court updated.");
   };
 
   // Admin: Update Score
-  const handleScoreChange = async (matchId: string, teamNum: 1 | 2, delta: number) => {
-    let targetMatch = matches.find((m) => m.id === matchId);
-    if (!targetMatch) return;
-
-    const s1 = teamNum === 1 ? Math.max(0, targetMatch.score1 + delta) : targetMatch.score1;
-    const s2 = teamNum === 2 ? Math.max(0, targetMatch.score2 + delta) : targetMatch.score2;
-
-    setMatches((prev) =>
-      prev.map((m) => (m.id === matchId ? { ...m, score1: s1, score2: s2, status: "live" } : m))
-    );
-
-    await (supabase.from("tournament_matches" as any) as any)
-      .update({ score1: s1, score2: s2, status: "live" })
-      .eq("id", matchId);
+  const handleScoreChange = (matchId: string, teamNum: 1 | 2, delta: number) => {
+    setTournament((prev) => ({
+      ...prev,
+      matches: prev.matches.map((m) => {
+        if (m.id !== matchId) return m;
+        const s1 = teamNum === 1 ? Math.max(0, m.score1 + delta) : m.score1;
+        const s2 = teamNum === 2 ? Math.max(0, m.score2 + delta) : m.score2;
+        return { ...m, score1: s1, score2: s2, status: "live" };
+      }),
+    }));
   };
 
   // Admin: Declare Winner
-  const handleDeclareWinner = async (matchId: string, winningTeamId: string) => {
-    setMatches((prev) =>
-      prev.map((m) => (m.id === matchId ? { ...m, winnerId: winningTeamId, status: "finished" } : m))
-    );
-
-    await (supabase.from("tournament_matches" as any) as any)
-      .update({ winner_id: winningTeamId, status: "finished" })
-      .eq("id", matchId);
-
+  const handleDeclareWinner = (matchId: string, winningTeamId: string) => {
+    setTournament((prev) => ({
+      ...prev,
+      matches: prev.matches.map((m) => (m.id === matchId ? { ...m, winnerId: winningTeamId, status: "finished" } : m)),
+    }));
     toast.success("Match completed! Winner advanced.");
   };
 
   // Register Team
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamName.trim() || !player1.trim() || !contact.trim()) {
       toast.error("Please fill in Team Name, Player 1, and Contact.");
       return;
     }
 
-    if (teams.length >= 8) {
+    if (tournament.teams.length >= 8) {
       toast.error("Tournament is currently full (8/8 teams).");
       setIsRegisterOpen(false);
       return;
     }
 
-    const newTeam = {
+    const newTeam: Team = {
       id: `t_${Date.now()}`,
-      tournament_id: TOURNAMENT_ID,
       name: teamName.trim(),
       player1: player1.trim(),
       player2: player2.trim() || "TBA",
       contact: contact.trim(),
-      skill_level: skill,
+      skillLevel: skill,
     };
 
-    const { error } = await (supabase.from("tournament_teams" as any) as any).insert([newTeam]);
+    setTournament((prev) => ({
+      ...prev,
+      teams: [...prev.teams, newTeam],
+    }));
 
-    if (error) {
-      toast.error("Registration failed: " + error.message);
-    } else {
-      toast.success(`Team "${newTeam.name}" registered successfully!`);
-      setIsRegisterOpen(false);
-      setTeamName("");
-      setPlayer1("");
-      setPlayer2("");
-      setContact("");
-      fetchData();
-    }
+    toast.success(`Team "${newTeam.name}" registered successfully!`);
+    setIsRegisterOpen(false);
+    setTeamName("");
+    setPlayer1("");
+    setPlayer2("");
+    setContact("");
   };
 
   const getTeam = (teamId?: string): Team | undefined => {
     if (!teamId) return undefined;
-    return teams.find((t) => t.id === teamId);
+    return tournament.teams.find((t) => t.id === teamId);
   };
 
-  const enrichedMatches = matches.map((m) => {
+  const enrichedMatches = tournament.matches.map((m) => {
     if (m.round === 1) {
-      if (m.matchNumber === 1) return { ...m, team1: teams[0], team2: teams[1] };
-      if (m.matchNumber === 2) return { ...m, team1: teams[2], team2: teams[3] };
-      if (m.matchNumber === 3) return { ...m, team1: teams[4], team2: teams[5] };
-      if (m.matchNumber === 4) return { ...m, team1: teams[6], team2: teams[7] };
+      if (m.matchNumber === 1) return { ...m, team1: tournament.teams[0], team2: tournament.teams[1] };
+      if (m.matchNumber === 2) return { ...m, team1: tournament.teams[2], team2: tournament.teams[3] };
+      if (m.matchNumber === 3) return { ...m, team1: tournament.teams[4], team2: tournament.teams[5] };
+      if (m.matchNumber === 4) return { ...m, team1: tournament.teams[6], team2: tournament.teams[7] };
     } else if (m.round === 2) {
-      const qf1Winner = matches.find((x) => x.id === "m1")?.winnerId;
-      const qf2Winner = matches.find((x) => x.id === "m2")?.winnerId;
-      const qf3Winner = matches.find((x) => x.id === "m3")?.winnerId;
-      const qf4Winner = matches.find((x) => x.id === "m4")?.winnerId;
+      const qf1Winner = tournament.matches.find((x) => x.id === "m1")?.winnerId;
+      const qf2Winner = tournament.matches.find((x) => x.id === "m2")?.winnerId;
+      const qf3Winner = tournament.matches.find((x) => x.id === "m3")?.winnerId;
+      const qf4Winner = tournament.matches.find((x) => x.id === "m4")?.winnerId;
 
       if (m.matchNumber === 5) return { ...m, team1: getTeam(qf1Winner), team2: getTeam(qf2Winner) };
       if (m.matchNumber === 6) return { ...m, team1: getTeam(qf3Winner), team2: getTeam(qf4Winner) };
     } else if (m.round === 3) {
-      const sf1Winner = matches.find((x) => x.id === "m5")?.winnerId;
-      const sf2Winner = matches.find((x) => x.id === "m6")?.winnerId;
+      const sf1Winner = tournament.matches.find((x) => x.id === "m5")?.winnerId;
+      const sf2Winner = tournament.matches.find((x) => x.id === "m6")?.winnerId;
       return { ...m, team1: getTeam(sf1Winner), team2: getTeam(sf2Winner) };
     }
     return m;
@@ -314,14 +249,6 @@ function TournamentsPage() {
 
   const finalMatch = enrichedMatches.find((m) => m.id === "m7");
   const champion = getTeam(finalMatch?.winnerId);
-
-  if (loading) {
-    return (
-      <div className="flex h-96 w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-muted/20 pb-16">
@@ -335,28 +262,28 @@ function TournamentsPage() {
                   <Swords className="h-3.5 w-3.5" /> Roadside Tournaments
                 </span>
                 <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600">
-                  {tournament?.status}
+                  {tournament.status}
                 </span>
               </div>
               <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-                {tournament?.title}
+                {tournament.title}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground sm:text-sm">
                 <span className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4 text-primary" /> {tournament?.date}
+                  <Calendar className="h-4 w-4 text-primary" /> {tournament.date}
                 </span>
                 <span className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4 text-primary" /> {tournament?.courtsText}
+                  <MapPin className="h-4 w-4 text-primary" /> {tournament.courtsText}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Trophy className="h-4 w-4 text-amber-500" /> Prize: {tournament?.prizePool}
+                  <Trophy className="h-4 w-4 text-amber-500" /> Prize: {tournament.prizePool}
                 </span>
               </div>
             </div>
 
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <Button onClick={() => setIsRegisterOpen(true)} className="flex-1 gap-1.5 sm:flex-initial">
-                <PlusCircle className="h-4 w-4" /> Register Team (₱{tournament?.entryFee})
+                <PlusCircle className="h-4 w-4" /> Register Team (₱{tournament.entryFee})
               </Button>
               {isAdminUser && (
                 <Button variant="outline" size="sm" onClick={() => setIsAdminEditOpen(true)} title="Edit Details">
@@ -450,12 +377,12 @@ function TournamentsPage() {
       <section className="mx-auto max-w-6xl px-4 pt-12">
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-bold text-foreground">Registered Teams ({teams.length}/8)</h3>
+            <h3 className="font-bold text-foreground">Registered Teams ({tournament.teams.length}/8)</h3>
             <span className="text-xs text-muted-foreground">Standard 2v2 format</span>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-            {teams.map((team, idx) => (
+            {tournament.teams.map((team, idx) => (
               <div key={team.id} className="relative rounded-lg border bg-muted/30 p-3 text-xs">
                 <div className="flex items-center justify-between font-bold text-foreground">
                   <span>#{idx + 1} {team.name}</span>
