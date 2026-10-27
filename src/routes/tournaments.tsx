@@ -54,7 +54,7 @@ interface Match {
   status: "upcoming" | "live" | "finished";
   winnerId?: string;
   nextMatchId?: string;
-  nextSlotIndex?: 1 | 2; // whether winner goes into team1 or team2 of next match
+  nextSlotIndex?: 1 | 2;
 }
 
 interface Tournament {
@@ -90,15 +90,12 @@ const INITIAL_TOURNAMENT: Tournament = {
     { id: "t8", name: "Net Ninjas", player1: "Rico B.", player2: "Dave H.", contact: "0924-888-9999", skillLevel: "Advanced" },
   ],
   matches: [
-    // Quarterfinals (Round 1)
     { id: "m1", round: 1, matchNumber: 1, score1: 11, score2: 7, court: "Court 1", timeSlot: "08:00 AM", status: "finished", winnerId: "t1", nextMatchId: "m5", nextSlotIndex: 1 },
     { id: "m2", round: 1, matchNumber: 2, score1: 8, score2: 11, court: "Court 2", timeSlot: "08:00 AM", status: "finished", winnerId: "t4", nextMatchId: "m5", nextSlotIndex: 2 },
     { id: "m3", round: 1, matchNumber: 3, score1: 11, score2: 9, court: "Court 3", timeSlot: "09:00 AM", status: "finished", winnerId: "t6", nextMatchId: "m6", nextSlotIndex: 1 },
     { id: "m4", round: 1, matchNumber: 4, score1: 5, score2: 11, court: "Court 4", timeSlot: "09:00 AM", status: "finished", winnerId: "t8", nextMatchId: "m6", nextSlotIndex: 2 },
-    // Semifinals (Round 2)
     { id: "m5", round: 2, matchNumber: 5, score1: 10, score2: 9, court: "Court 1", timeSlot: "10:30 AM", status: "live", nextMatchId: "m7", nextSlotIndex: 1 },
     { id: "m6", round: 2, matchNumber: 6, score1: 0, score2: 0, court: "Court 2", timeSlot: "10:30 AM", status: "upcoming", nextMatchId: "m7", nextSlotIndex: 2 },
-    // Finals (Round 3)
     { id: "m7", round: 3, matchNumber: 7, score1: 0, score2: 0, court: "Court 1 — Championship", timeSlot: "01:00 PM", status: "upcoming" },
   ],
 };
@@ -125,18 +122,15 @@ function TournamentsPage() {
   const [contact, setContact] = useState("");
   const [skill, setSkill] = useState<"Beginner" | "Intermediate" | "Advanced">("Intermediate");
 
-  // Save changes to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament));
   }, [tournament]);
 
-  // Wire initial teams to match pointers
   const getTeam = (teamId?: string): Team | undefined => {
     if (!teamId) return undefined;
     return tournament.teams.find((t) => t.id === teamId);
   };
 
-  // Helper to resolve match teams dynamically
   const enrichedMatches = tournament.matches.map((m) => {
     if (m.round === 1) {
       if (m.matchNumber === 1) return { ...m, team1: tournament.teams[0], team2: tournament.teams[1] };
@@ -166,7 +160,6 @@ function TournamentsPage() {
   const finalMatch = enrichedMatches.find((m) => m.id === "m7");
   const champion = getTeam(finalMatch?.winnerId);
 
-  // Handle Team Registration
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamName.trim() || !player1.trim() || !contact.trim()) {
@@ -202,7 +195,6 @@ function TournamentsPage() {
     setContact("");
   };
 
-  // Admin: Update Match Score & Advance Winner
   const handleScoreChange = (matchId: string, teamNum: 1 | 2, delta: number) => {
     setTournament((prev) => {
       const updatedMatches = prev.matches.map((m) => {
@@ -240,7 +232,6 @@ function TournamentsPage() {
 
   return (
     <main className="min-h-screen bg-muted/20 pb-16">
-      {/* Hero Header */}
       <section className="border-b bg-card py-8 shadow-sm">
         <div className="mx-auto max-w-6xl px-4">
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
@@ -283,7 +274,6 @@ function TournamentsPage() {
         </div>
       </section>
 
-      {/* Champion Banner (If decided) */}
       {champion && (
         <div className="mx-auto max-w-6xl px-4 pt-6">
           <div className="flex items-center justify-between rounded-xl border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-transparent p-5 shadow-sm">
@@ -302,16 +292,13 @@ function TournamentsPage() {
         </div>
       )}
 
-      {/* Main Bracket Board */}
       <section className="mx-auto max-w-6xl px-4 pt-8">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-foreground">Live Elimination Bracket</h2>
           <span className="text-xs text-muted-foreground">8 Teams • Single Elimination</span>
         </div>
 
-        {/* Bracket Grid */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* ROUND 1: QUARTERFINALS */}
           <div className="space-y-4">
             <div className="rounded-lg bg-primary/10 px-3 py-1.5 text-center text-xs font-bold uppercase tracking-wider text-primary">
               Round 1 • Quarterfinals
@@ -327,7 +314,6 @@ function TournamentsPage() {
             ))}
           </div>
 
-          {/* ROUND 2: SEMIFINALS */}
           <div className="space-y-4 lg:pt-12">
             <div className="rounded-lg bg-primary/10 px-3 py-1.5 text-center text-xs font-bold uppercase tracking-wider text-primary">
               Round 2 • Semifinals
@@ -343,7 +329,6 @@ function TournamentsPage() {
             ))}
           </div>
 
-          {/* ROUND 3: CHAMPIONSHIP FINAL */}
           <div className="space-y-4 lg:pt-28">
             <div className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-center text-xs font-bold uppercase tracking-wider text-amber-700">
               Championship Final 🏆
@@ -362,7 +347,6 @@ function TournamentsPage() {
         </div>
       </section>
 
-      {/* Registered Teams Directory */}
       <section className="mx-auto max-w-6xl px-4 pt-12">
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
@@ -385,7 +369,6 @@ function TournamentsPage() {
         </div>
       </section>
 
-      {/* Registration Modal */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
@@ -459,4 +442,91 @@ function TournamentsPage() {
               </div>
 
               <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                Entry fee of <strong>₱{tournament.entryFee}</strong> can be paid at the counter upon arrival or via G
+                Entry fee of <strong>₱{tournament.entryFee}</strong> can be paid at the counter upon arrival or via GCash.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsRegisterOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Confirm Registration
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+interface MatchCardProps {
+  match: Match;
+  isAdmin: boolean;
+  isFinal?: boolean;
+  onScoreChange: (matchId: string, teamNum: 1 | 2, delta: number) => void;
+  onDeclareWinner: (matchId: string, winningTeamId: string) => void;
+}
+
+function MatchCard({ match, isAdmin, isFinal, onScoreChange, onDeclareWinner }: MatchCardProps) {
+  const isFinished = match.status === "finished";
+  const isLive = match.status === "live";
+
+  return (
+    <div className={`relative rounded-xl border bg-card p-4 shadow-sm transition-all ${isFinal ? "border-amber-400/50 bg-gradient-to-b from-amber-500/5 to-card" : ""}`}>
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <span className="flex items-center gap-1 font-semibold text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 text-primary" /> {match.timeSlot}
+        </span>
+        <span className="flex items-center gap-1 text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5 text-primary" /> {match.court}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        <div className={`flex items-center justify-between rounded-lg border p-2.5 text-xs transition-colors ${match.winnerId && match.winnerId === match.team1?.id ? "border-emerald-500 bg-emerald-500/10 font-bold" : "bg-muted/30"}`}>
+          <div className="flex items-center gap-2 truncate">
+            <span className="font-semibold text-foreground truncate">{match.team1?.name || "TBA (Waiting)"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold">{match.score1}</span>
+            {isAdmin && !isFinished && match.team1 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => onScoreChange(match.id, 1, -1)} className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold hover:bg-muted-foreground/20">-</button>
+                <button onClick={() => onScoreChange(match.id, 1, 1)} className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/30">+</button>
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => onDeclareWinner(match.id, match.team1!.id)}>Win</Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`flex items-center justify-between rounded-lg border p-2.5 text-xs transition-colors ${match.winnerId && match.winnerId === match.team2?.id ? "border-emerald-500 bg-emerald-500/10 font-bold" : "bg-muted/30"}`}>
+          <div className="flex items-center gap-2 truncate">
+            <span className="font-semibold text-foreground truncate">{match.team2?.name || "TBA (Waiting)"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold">{match.score2}</span>
+            {isAdmin && !isFinished && match.team2 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => onScoreChange(match.id, 2, -1)} className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold hover:bg-muted-foreground/20">-</button>
+                <button onClick={() => onScoreChange(match.id, 2, 1)} className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/30">+</button>
+                <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => onDeclareWinner(match.id, match.team2!.id)}>Win</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between border-t pt-2.5 text-[10px]">
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${isFinished ? "bg-emerald-500/10 text-emerald-600" : isLive ? "bg-primary/10 text-primary animate-pulse" : "bg-muted text-muted-foreground"}`}>
+          {isFinished ? <CheckCircle2 className="h-3 w-3" /> : isLive ? <ShieldAlert className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+          {isFinished ? "Completed" : isLive ? "Live Now" : "Upcoming"}
+        </span>
+        {match.winnerId && (
+          <span className="font-semibold text-emerald-600">Winner decided</span>
+        )}
+      </div>
+    </div>
+  );
+}
