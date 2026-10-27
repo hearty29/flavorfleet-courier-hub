@@ -13,11 +13,13 @@ import {
   X,
   Medal,
   Settings,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/tournaments")({
   head: () => ({
@@ -64,59 +66,43 @@ interface Tournament {
   matches: Match[];
 }
 
-const STORAGE_KEY = "roadside_tournament_prod_v2";
+const TOURNAMENT_ID = "roadside-open-2026";
 
-const INITIAL_TOURNAMENT: Tournament = {
-  id: "roadside-open-2026",
-  title: "Roadside Open Doubles Championship",
-  date: "Saturday, Nov 14, 2026 • 8:00 AM",
-  entryFee: 500,
-  prizePool: "₱10,000 Cash + Free Court Vouchers",
-  courtsText: "Roadside Courts 1–4",
-  status: "In Progress",
-  teams: [
-    { id: "t1", name: "Kitchen Smashers", player1: "Jessie C.", player2: "Mark R.", contact: "0917-111-2222", skillLevel: "Advanced" },
-    { id: "t2", name: "Dink Masters", player1: "Carlos T.", player2: "Benjie S.", contact: "0918-222-3333", skillLevel: "Intermediate" },
-    { id: "t3", name: "Drop Shot Kings", player1: "Arnel M.", player2: "Dennis P.", contact: "0919-333-4444", skillLevel: "Intermediate" },
-    { id: "t4", name: "Baseline Bandits", player1: "Joel V.", player2: "Paolo D.", contact: "0920-444-5555", skillLevel: "Advanced" },
-    { id: "t5", name: "Spin Doctors", player1: "Ryan G.", player2: "Kevin L.", contact: "0921-555-6666", skillLevel: "Beginner" },
-    { id: "t6", name: "Erne Attack", player1: "Mico F.", player2: "Leo K.", contact: "0922-666-7777", skillLevel: "Intermediate" },
-    { id: "t7", name: "Volley Vipers", player1: "Allan N.", player2: "Chris O.", contact: "0923-777-8888", skillLevel: "Intermediate" },
-    { id: "t8", name: "Net Ninjas", player1: "Rico B.", player2: "Dave H.", contact: "0924-888-9999", skillLevel: "Advanced" },
-  ],
-  matches: [
-    { id: "m1", round: 1, matchNumber: 1, score1: 11, score2: 7, court: "Court 1", timeSlot: "08:00 AM", status: "finished", winnerId: "t1" },
-    { id: "m2", round: 1, matchNumber: 2, score1: 8, score2: 11, court: "Court 2", timeSlot: "08:00 AM", status: "finished", winnerId: "t4" },
-    { id: "m3", round: 1, matchNumber: 3, score1: 11, score2: 9, court: "Court 3", timeSlot: "09:00 AM", status: "finished", winnerId: "t6" },
-    { id: "m4", round: 1, matchNumber: 4, score1: 5, score2: 11, court: "Court 4", timeSlot: "09:00 AM", status: "finished", winnerId: "t8" },
-    { id: "m5", round: 2, matchNumber: 5, score1: 10, score2: 9, court: "Court 1", timeSlot: "10:30 AM", status: "live" },
-    { id: "m6", round: 2, matchNumber: 6, score1: 0, score2: 0, court: "Court 2", timeSlot: "10:30 AM", status: "upcoming" },
-    { id: "m7", round: 3, matchNumber: 7, score1: 0, score2: 0, court: "Court 1 — Championship", timeSlot: "01:00 PM", status: "upcoming" },
-  ],
-};
+const INITIAL_TEAMS: Team[] = [
+  { id: "t1", name: "Kitchen Smashers", player1: "Jessie C.", player2: "Mark R.", contact: "0917-111-2222", skillLevel: "Advanced" },
+  { id: "t2", name: "Dink Masters", player1: "Carlos T.", player2: "Benjie S.", contact: "0918-222-3333", skillLevel: "Intermediate" },
+  { id: "t3", name: "Drop Shot Kings", player1: "Arnel M.", player2: "Dennis P.", contact: "0919-333-4444", skillLevel: "Intermediate" },
+  { id: "t4", name: "Baseline Bandits", player1: "Joel V.", player2: "Paolo D.", contact: "0920-444-5555", skillLevel: "Advanced" },
+  { id: "t5", name: "Spin Doctors", player1: "Ryan G.", player2: "Kevin L.", contact: "0921-555-6666", skillLevel: "Beginner" },
+  { id: "t6", name: "Erne Attack", player1: "Mico F.", player2: "Leo K.", contact: "0922-666-7777", skillLevel: "Intermediate" },
+  { id: "t7", name: "Volley Vipers", player1: "Allan N.", player2: "Chris O.", contact: "0923-777-8888", skillLevel: "Intermediate" },
+  { id: "t8", name: "Net Ninjas", player1: "Rico B.", player2: "Dave H.", contact: "0924-888-9999", skillLevel: "Advanced" },
+];
+
+const INITIAL_MATCHES: Match[] = [
+  { id: "m1", round: 1, matchNumber: 1, score1: 11, score2: 7, court: "Court 1", timeSlot: "08:00 AM", status: "finished", winnerId: "t1" },
+  { id: "m2", round: 1, matchNumber: 2, score1: 8, score2: 11, court: "Court 2", timeSlot: "08:00 AM", status: "finished", winnerId: "t4" },
+  { id: "m3", round: 1, matchNumber: 3, score1: 11, score2: 9, court: "Court 3", timeSlot: "09:00 AM", status: "finished", winnerId: "t6" },
+  { id: "m4", round: 1, matchNumber: 4, score1: 5, score2: 11, court: "Court 4", timeSlot: "09:00 AM", status: "finished", winnerId: "t8" },
+  { id: "m5", round: 2, matchNumber: 5, score1: 10, score2: 9, court: "Court 1", timeSlot: "10:30 AM", status: "live" },
+  { id: "m6", round: 2, matchNumber: 6, score1: 0, score2: 0, court: "Court 2", timeSlot: "10:30 AM", status: "upcoming" },
+  { id: "m7", round: 3, matchNumber: 7, score1: 0, score2: 0, court: "Court 1 — Championship", timeSlot: "01:00 PM", status: "upcoming" },
+];
 
 function TournamentsPage() {
   const { roles } = useAuth();
   const isAdminUser = roles.includes("admin");
 
-  const [tournament, setTournament] = useState<Tournament>(() => {
-    if (typeof window === "undefined") return INITIAL_TOURNAMENT;
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (!cached) return INITIAL_TOURNAMENT;
-    try {
-      return JSON.parse(cached);
-    } catch {
-      return INITIAL_TOURNAMENT;
-    }
-  });
+  const [loading, setLoading] = useState(true);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isAdminEditOpen, setIsAdminEditOpen] = useState(false);
 
   // Form states for Admin Settings Edit
-  const [editDate, setEditDate] = useState(tournament.date);
-  const [editPrize, setEditPrize] = useState(tournament.prizePool);
-  const [editCourts, setEditCourts] = useState(tournament.courtsText);
+  const [editDate, setEditDate] = useState("");
+  const [editPrize, setEditPrize] = useState("");
+  const [editCourts, setEditCourts] = useState("");
 
   // Registration Form states
   const [teamName, setTeamName] = useState("");
@@ -125,68 +111,156 @@ function TournamentsPage() {
   const [contact, setContact] = useState("");
   const [skill, setSkill] = useState<"Beginner" | "Intermediate" | "Advanced">("Intermediate");
 
+  // Fetch tournament data from Supabase
+  const fetchTournament = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await (supabase.from("tournaments" as any) as any)
+        .select("*")
+        .eq("id", TOURNAMENT_ID)
+        .maybeSingle();
+
+      if (!data) {
+        // Initialize default record if none exists
+        const newRecord = {
+          id: TOURNAMENT_ID,
+          title: "Roadside Open Doubles Championship",
+          date: "Saturday, Nov 14, 2026 • 8:00 AM",
+          entry_fee: 500,
+          prize_pool: "₱10,000 Cash + Free Court Vouchers",
+          courts_text: "Roadside Courts 1–4",
+          status: "In Progress",
+          teams: INITIAL_TEAMS,
+          matches: INITIAL_MATCHES,
+        };
+        await (supabase.from("tournaments" as any) as any).insert([newRecord]);
+        setTournament({
+          id: newRecord.id,
+          title: newRecord.title,
+          date: newRecord.date,
+          entryFee: newRecord.entry_fee,
+          prizePool: newRecord.prize_pool,
+          courtsText: newRecord.courts_text,
+          status: newRecord.status,
+          teams: newRecord.teams,
+          matches: newRecord.matches,
+        });
+        setEditDate(newRecord.date);
+        setEditPrize(newRecord.prize_pool);
+        setEditCourts(newRecord.courts_text);
+      } else {
+        const teamsList = data.teams && data.teams.length > 0 ? data.teams : INITIAL_TEAMS;
+        const matchesList = data.matches && data.matches.length > 0 ? data.matches : INITIAL_MATCHES;
+
+        setTournament({
+          id: data.id,
+          title: data.title,
+          date: data.date,
+          entryFee: Number(data.entry_fee),
+          prizePool: data.prize_pool,
+          courtsText: data.courts_text,
+          status: data.status,
+          teams: teamsList,
+          matches: matchesList,
+        });
+        setEditDate(data.date);
+        setEditPrize(data.prize_pool);
+        setEditCourts(data.courts_text);
+      }
+    } catch (err) {
+      console.error("Error fetching tournament:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament));
-  }, [tournament]);
+    fetchTournament();
+  }, []);
+
+  // Helper to save updated tournament state to Supabase
+  const saveTournamentState = async (updated: Tournament) => {
+    setTournament(updated);
+    const { error } = await (supabase.from("tournaments" as any) as any)
+      .update({
+        title: updated.title,
+        date: updated.date,
+        entry_fee: updated.entryFee,
+        prize_pool: updated.prizePool,
+        courts_text: updated.courtsText,
+        status: updated.status,
+        teams: updated.teams,
+        matches: updated.matches,
+      })
+      .eq("id", TOURNAMENT_ID);
+
+    if (error) {
+      toast.error("Failed to sync changes: " + error.message);
+    }
+  };
 
   // Admin: Remove Team
-  const handleRemoveTeam = (teamId: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove "${name}"?`)) return;
+  const handleRemoveTeam = async (teamId: string, name: string) => {
+    if (!tournament || !confirm(`Are you sure you want to remove "${name}"?`)) return;
 
-    setTournament((prev) => ({
-      ...prev,
-      teams: prev.teams.filter((t) => t.id !== teamId),
-    }));
+    const updatedTeams = tournament.teams.filter((t) => t.id !== teamId);
+    await saveTournamentState({ ...tournament, teams: updatedTeams });
     toast.success(`Team "${name}" removed successfully.`);
   };
 
   // Admin: Save General Settings (Date, Prize, Courts)
-  const handleSaveAdminSettings = (e: React.FormEvent) => {
+  const handleSaveAdminSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTournament((prev) => ({
-      ...prev,
+    if (!tournament) return;
+
+    const updated = {
+      ...tournament,
       date: editDate,
       prizePool: editPrize,
       courtsText: editCourts,
-    }));
+    };
+    await saveTournamentState(updated);
     toast.success("Tournament details saved.");
     setIsAdminEditOpen(false);
   };
 
   // Admin: Update Match Court Number
-  const handleMatchCourtChange = (matchId: string, newCourt: string) => {
-    setTournament((prev) => ({
-      ...prev,
-      matches: prev.matches.map((m) => (m.id === matchId ? { ...m, court: newCourt } : m)),
-    }));
+  const handleMatchCourtChange = async (matchId: string, newCourt: string) => {
+    if (!tournament) return;
+
+    const updatedMatches = tournament.matches.map((m) => (m.id === matchId ? { ...m, court: newCourt } : m));
+    await saveTournamentState({ ...tournament, matches: updatedMatches });
     toast.success("Match court updated.");
   };
 
   // Admin: Update Score
-  const handleScoreChange = (matchId: string, teamNum: 1 | 2, delta: number) => {
-    setTournament((prev) => ({
-      ...prev,
-      matches: prev.matches.map((m) => {
-        if (m.id !== matchId) return m;
-        const s1 = teamNum === 1 ? Math.max(0, m.score1 + delta) : m.score1;
-        const s2 = teamNum === 2 ? Math.max(0, m.score2 + delta) : m.score2;
-        return { ...m, score1: s1, score2: s2, status: "live" };
-      }),
-    }));
+  const handleScoreChange = async (matchId: string, teamNum: 1 | 2, delta: number) => {
+    if (!tournament) return;
+
+    const updatedMatches = tournament.matches.map((m) => {
+      if (m.id !== matchId) return m;
+      const s1 = teamNum === 1 ? Math.max(0, m.score1 + delta) : m.score1;
+      const s2 = teamNum === 2 ? Math.max(0, m.score2 + delta) : m.score2;
+      return { ...m, score1: s1, score2: s2, status: "live" as const };
+    });
+    await saveTournamentState({ ...tournament, matches: updatedMatches });
   };
 
   // Admin: Declare Winner
-  const handleDeclareWinner = (matchId: string, winningTeamId: string) => {
-    setTournament((prev) => ({
-      ...prev,
-      matches: prev.matches.map((m) => (m.id === matchId ? { ...m, winnerId: winningTeamId, status: "finished" } : m)),
-    }));
+  const handleDeclareWinner = async (matchId: string, winningTeamId: string) => {
+    if (!tournament) return;
+
+    const updatedMatches = tournament.matches.map((m) =>
+      m.id === matchId ? { ...m, winnerId: winningTeamId, status: "finished" as const } : m
+    );
+    await saveTournamentState({ ...tournament, matches: updatedMatches });
     toast.success("Match completed! Winner advanced.");
   };
 
   // Register Team
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tournament) return;
     if (!teamName.trim() || !player1.trim() || !contact.trim()) {
       toast.error("Please fill in Team Name, Player 1, and Contact.");
       return;
@@ -207,10 +281,8 @@ function TournamentsPage() {
       skillLevel: skill,
     };
 
-    setTournament((prev) => ({
-      ...prev,
-      teams: [...prev.teams, newTeam],
-    }));
+    const updatedTeams = [...tournament.teams, newTeam];
+    await saveTournamentState({ ...tournament, teams: updatedTeams });
 
     toast.success(`Team "${newTeam.name}" registered successfully!`);
     setIsRegisterOpen(false);
@@ -221,9 +293,17 @@ function TournamentsPage() {
   };
 
   const getTeam = (teamId?: string): Team | undefined => {
-    if (!teamId) return undefined;
+    if (!tournament || !teamId) return undefined;
     return tournament.teams.find((t) => t.id === teamId);
   };
+
+  if (loading || !tournament) {
+    return (
+      <div className="flex h-96 w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const enrichedMatches = tournament.matches.map((m) => {
     if (m.round === 1) {
