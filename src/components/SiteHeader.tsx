@@ -1,15 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { 
-  ShoppingBag, 
-  LogOut, 
-  Shield, 
-  Bike, 
-  Receipt, 
-  Trophy, 
-  Info, 
-  Swords 
-} from "lucide-react";
+import { ShoppingBag, LogOut, Shield, Bike, Receipt, Trophy, Info } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,60 +42,27 @@ export function SiteHeader() {
           </Link>
         </Button>
 
-        {/* Tournaments Tab */}
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/tournaments" aria-label="Tournaments & Brackets">
-            <Swords className="h-4 w-4" />
-            <span className="ml-1.5 hidden font-medium sm:inline">Tournaments</span>
-          </Link>
-        </Button>
-
         {roles.includes("admin") && (
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/admin">
-              <Shield className="h-4 w-4" />
-              <span className="ml-1.5 hidden sm:inline">Admin</span>
-            </Link>
-          </Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/admin"><Shield /> <span className="hidden sm:inline">Admin</span></Link></Button>
         )}
-
         {roles.includes("rider") && (
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/rider">
-              <Bike className="h-4 w-4" />
-              <span className="ml-1.5 hidden sm:inline">Rider</span>
-            </Link>
-          </Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/rider"><Bike /> <span className="hidden sm:inline">Rider</span></Link></Button>
         )}
-
         {session && (
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/orders">
-              <Receipt className="h-4 w-4" />
-              <span className="ml-1.5 hidden sm:inline">Orders</span>
-            </Link>
-          </Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/orders"><Receipt /> <span className="hidden sm:inline">Orders</span></Link></Button>
         )}
-
         <Button asChild variant="outline" size="sm" className="relative">
-          <Link to="/checkout" aria-label="View Cart">
-            <ShoppingBag className="h-4 w-4" />
+          <Link to="/checkout">
+            <ShoppingBag />
             {count > 0 && (
-              <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-xs text-primary-foreground font-bold">
-                {count}
-              </span>
+              <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-xs text-primary-foreground">{count}</span>
             )}
           </Link>
         </Button>
-
         {session ? (
-          <Button variant="ghost" size="sm" onClick={signOut} aria-label="Sign out">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <Button variant="ghost" size="sm" onClick={signOut} aria-label="Sign out"><LogOut /></Button>
         ) : (
-          <Button asChild size="sm">
-            <Link to="/auth">Sign in</Link>
-          </Button>
+          <Button asChild size="sm"><Link to="/auth">Sign in</Link></Button>
         )}
       </div>
     </header>
