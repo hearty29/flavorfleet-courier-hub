@@ -133,6 +133,7 @@ const statuses: OrderStatus[] = [
 function OrdersTab() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("active");
+
   const { data: orders = [] } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
@@ -146,6 +147,25 @@ function OrdersTab() {
     },
   });
 
+  // Lookup map to get the rider's registered full name
+  const { data: riderMap = {} } = useQuery({
+    queryKey: ["admin-rider-map"],
+    queryFn: async () => {
+      const [{ data: apps }, { data: profiles }] = await Promise.all([
+        supabase.from("rider_applications").select("user_id, full_name"),
+        supabase.from("profiles").select("id, full_name"),
+      ]);
+      const map: Record<string, string> = {};
+      profiles?.forEach((p) => {
+        if (p.id && p.full_name) map[p.id] = p.full_name.trim();
+      });
+      apps?.forEach((r) => {
+        if (r.user_id && r.full_name) map[r.user_id] = r.full_name.trim();
+      });
+      return map;
+    },
+  });
+
   useEffect(() => {
     const ch = supabase
       .channel(`admin-${Math.random().toString(36).slice(2)}`)
@@ -153,7 +173,6 @@ function OrdersTab() {
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
         (payload) => {
-          // Play sound and display alert on brand new order placed
           if (payload.eventType === "INSERT") {
             playNewOrderSound();
             const newOrder = payload.new as { id?: string; customer_name?: string };
@@ -241,7 +260,13 @@ function OrdersTab() {
               <DeliveryProofImage path={o.proof_of_delivery_path} />
               <p className="text-xs text-muted-foreground">
                 {new Date(o.created_at).toLocaleString()} ·{" "}
-                {o.rider_id ? "Rider assigned" : "No rider yet"}
+                {o.rider_id ? (
+                  <span className="font-medium text-foreground">
+                    Rider: {riderMap[o.rider_id] || "Rider assigned"}
+                  </span>
+                ) : (
+                  "No rider yet"
+                )}
               </p>
             </div>
             <div className="flex flex-col items-end gap-2">
