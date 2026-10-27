@@ -10,7 +10,6 @@ import {
   CheckCircle2, 
   Sparkles, 
   ShieldAlert, 
-  RefreshCw, 
   X,
   Medal,
   Settings,
