@@ -262,7 +262,7 @@ function OrdersTab() {
                 {new Date(o.created_at).toLocaleString()} ·{" "}
                 {o.rider_id ? (
                   <span className="font-medium text-foreground">
-                    Rider: {riderMap[o.rider_id] || "Rider assigned"}
+                    Rider Assigned: {riderMap[o.rider_id] || "Rider assigned"}
                   </span>
                 ) : (
                   "No rider yet"
