@@ -572,6 +572,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      delete_support_conversation: { Args: { _conversation: string }; Returns: undefined }
       mark_support_read: { Args: { _conversation: string }; Returns: undefined }
       open_support_conversation: {
         Args: { _kind: string; _order?: string }
