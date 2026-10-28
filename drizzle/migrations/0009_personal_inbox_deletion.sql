@@ -1,7 +1,7 @@
 BEGIN;
 
 -- A deletion is personal inbox state. Shared conversations/messages are retained.
-CREATE TABLE public.support_inbox_deletions (
+CREATE TABLE IF NOT EXISTS public.support_inbox_deletions (
  conversation_id uuid NOT NULL REFERENCES public.support_conversations(id) ON DELETE CASCADE,
  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
  deleted_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -10,9 +10,14 @@ CREATE TABLE public.support_inbox_deletions (
 ALTER TABLE public.support_inbox_deletions ENABLE ROW LEVEL SECURITY;
 GRANT SELECT ON public.support_inbox_deletions TO authenticated;
 GRANT ALL ON public.support_inbox_deletions TO service_role;
+DROP POLICY IF EXISTS support_inbox_deletions_own ON public.support_inbox_deletions;
 CREATE POLICY support_inbox_deletions_own ON public.support_inbox_deletions
  FOR SELECT TO authenticated USING (user_id=auth.uid() AND public.can_access_support(conversation_id));
 
+-- Normalize this RPC even if a previous implementation used another argument
+-- name or return type. No CASCADE: dependencies must never be removed silently.
+-- This replaces only the function; conversation/message/inbox rows stay intact.
+DROP FUNCTION IF EXISTS public.delete_support_conversation(uuid);
 CREATE FUNCTION public.delete_support_conversation(_conversation uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
@@ -31,13 +36,14 @@ GRANT EXECUTE ON FUNCTION public.delete_support_conversation(uuid) TO authentica
 -- Message preparation already locks the conversation row. Clear hidden state in
 -- the same transaction as the insert, so other participants and concurrent sends
 -- cannot lose a new conversation notification.
-CREATE FUNCTION public.restore_support_inboxes_on_message()
+CREATE OR REPLACE FUNCTION public.restore_support_inboxes_on_message()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
  DELETE FROM public.support_inbox_deletions WHERE conversation_id=NEW.conversation_id;
  RETURN NEW;
 END; $$;
 REVOKE ALL ON FUNCTION public.restore_support_inboxes_on_message() FROM PUBLIC,anon,authenticated;
+DROP TRIGGER IF EXISTS support_message_restore_inboxes ON public.support_messages;
 CREATE TRIGGER support_message_restore_inboxes AFTER INSERT ON public.support_messages
  FOR EACH ROW EXECUTE FUNCTION public.restore_support_inboxes_on_message();
 

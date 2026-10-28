@@ -132,10 +132,17 @@ button restores it only for that account. Resolving a thread alone does not
 restore it. Other sessions refresh their inbox within the existing 10-second poll.
 
 Apply the complete `drizzle/migrations/0009_personal_inbox_deletion.sql` file
-**once**, after earlier migrations, in the same **Lovable Cloud → Database →
+after earlier migrations, in the same **Lovable Cloud → Database →
 Manage → SQL editor** used for the order and tournament updates. Apply SQL before
 publishing the updated frontend. Existing conversation access, sender identity
 checks and rider assignment rules remain enforced.
+
+If the SQL editor reports `delete_support_conversation already exists`, clear
+the editor and run the complete current version of that file. It can be rerun
+after an earlier installation or failed attempt. It replaces the inbox RPC,
+policy and restore trigger without deleting conversation, message, read or
+personal inbox state. It does not remove dependent database objects; if a
+dependency blocks replacement, the transaction rolls back without data changes.
 
 Local checks use an empty disposable PostgreSQL database as a local superuser:
 

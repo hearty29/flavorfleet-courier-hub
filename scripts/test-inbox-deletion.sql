@@ -2,18 +2,36 @@
 -- Empty disposable local database only; baseline creates synthetic auth/storage.
 \ir test-order-types.sql
 \ir ../drizzle/migrations/0008_pickleball_tournaments.sql
+-- Hosted projects may already define this RPC with a different parameter name
+-- and return type. The migration must install the browser's canonical contract.
+CREATE FUNCTION public.delete_support_conversation(_chat_id uuid) RETURNS boolean
+LANGUAGE sql AS $$ SELECT true; $$;
 \ir ../drizzle/migrations/0009_personal_inbox_deletion.sql
+SELECT test_assert(pg_get_function_result('public.delete_support_conversation(uuid)'::regprocedure) = 'void', 'normalizes existing RPC return type');
+SELECT test_assert(proargnames = ARRAY['_conversation'], 'normalizes existing RPC argument name')
+FROM pg_proc WHERE oid = 'public.delete_support_conversation(uuid)'::regprocedure;
 
 SET ROLE authenticated;
 SET request.jwt.claim.sub = '00000000-0000-0000-0000-000000000002';
 SELECT open_support_conversation('customer_admin') AS customer_chat \gset
 SELECT open_support_conversation('order_rider', :'delivery_id') AS order_chat \gset
 INSERT INTO support_messages(conversation_id,body) VALUES (:'customer_chat','Original message');
+SELECT mark_support_read(:'customer_chat');
 SELECT delete_support_conversation(:'customer_chat');
 SELECT delete_support_conversation(:'customer_chat');
+-- Rerunning the complete migration must keep both messages and personal state.
+RESET ROLE;
+\ir ../drizzle/migrations/0009_personal_inbox_deletion.sql
+\ir ../drizzle/migrations/0009_personal_inbox_deletion.sql
+SELECT test_assert(count(*)=1, 'reruns keep one restore trigger') FROM pg_trigger
+WHERE tgrelid='public.support_messages'::regclass AND tgname='support_message_restore_inboxes';
+SELECT test_assert(count(*)=1, 'reruns keep one personal visibility policy') FROM pg_policy
+WHERE polrelid='public.support_inbox_deletions'::regclass AND polname='support_inbox_deletions_own';
+SET ROLE authenticated;
 SELECT test_assert(count(*)=0,'customer hides their inbox entry idempotently') FROM list_support_conversations() WHERE id=:'customer_chat';
 SELECT test_assert(count(*)=1,'customer retains message history') FROM support_messages WHERE conversation_id=:'customer_chat';
 SELECT test_assert(count(*)=1,'customer sees own deletion state') FROM support_inbox_deletions;
+SELECT test_assert(count(*)=1,'reruns preserve read state') FROM support_reads WHERE conversation_id=:'customer_chat' AND user_id=auth.uid();
 SELECT test_reject(format('DELETE FROM support_messages WHERE conversation_id=%L',:'customer_chat'),'permission denied');
 SELECT test_reject(format('DELETE FROM support_conversations WHERE id=%L',:'customer_chat'),'permission denied');
 SELECT test_reject(format('INSERT INTO support_inbox_deletions(conversation_id,user_id) VALUES (%L,%L)',:'customer_chat','00000000-0000-0000-0000-000000000001'),'permission denied');
