@@ -95,7 +95,7 @@ function PickleballPage() {
   const [showAdminBookingsModal, setShowAdminBookingsModal] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // Check current user role safely
+  // Check current user role from Supabase Auth safely
   useEffect(() => {
     async function checkAdminStatus() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -140,7 +140,7 @@ function PickleballPage() {
     };
   }, []);
 
-  // Fetch courts dynamically from database
+  // Fetch courts dynamically from Supabase
   const queryClient = useQueryClient();
   const { data: courts = [], refetch: refetchCourts } = useQuery({
     queryKey: ["courts-list"],
@@ -194,19 +194,6 @@ function PickleballPage() {
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
 
-  // Auto-switch to first available court if currently selected court is under maintenance
-  useEffect(() => {
-    if (courts.length > 0) {
-      const current = courts.find((c) => c.id === selectedCourt);
-      if (current && current.status === "maintenance") {
-        const firstAvailable = courts.find((c) => c.status !== "maintenance");
-        if (firstAvailable) {
-          setSelectedCourt(firstAvailable.id);
-        }
-      }
-    }
-  }, [courts, selectedCourt]);
-
   const courtObj = courts.find((c) => c.id === selectedCourt) || courts[0] || {
     id: "court-1",
     name: "Court 1 — Pro Arena",
@@ -244,12 +231,6 @@ function PickleballPage() {
 
   const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (courtObj.status === "maintenance") {
-      toast.error("This court is currently under maintenance. Please choose another court.");
-      return;
-    }
-
     if (!playerName.trim() || !playerContact.trim()) {
       toast.error("Please enter your name and phone number");
       return;
@@ -273,7 +254,7 @@ function PickleballPage() {
     setSaving(true);
     let uploadedReceiptUrl = "";
 
-    // Upload receipt to Storage if GCash is selected
+    // Upload receipt to Supabase Storage if GCash is selected
     if (paymentMethod === "gcash" && receiptFile) {
       const fileExt = receiptFile.name.split(".").pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -296,7 +277,7 @@ function PickleballPage() {
       uploadedReceiptUrl = publicUrlData.publicUrl;
     }
 
-    // Call booking RPC
+    // Call booking RPC or table insert
     const { error } = await supabase.rpc("book_court", {
       _court: selectedCourt,
       _date: bookingDate,
@@ -332,7 +313,7 @@ function PickleballPage() {
     toast.success(`Court reserved! See you on ${bookingDate} at ${selectedSlot}.`);
   };
 
-  // Admin action: Block slot
+  // Admin action: Block/Mark slot as Not Available
   const handleBlockSlot = async (slotToBlock: string) => {
     if (!isAdmin || !isUserAdminRole) return;
     try {
@@ -366,7 +347,7 @@ function PickleballPage() {
     }
   };
 
-  // Admin action: Free up slot
+  // Admin action: Cancel/Free up slot
   const handleCancelBookingSlot = async (slotToCancel: string) => {
     if (!isAdmin || !isUserAdminRole) return;
     try {
@@ -389,7 +370,7 @@ function PickleballPage() {
     }
   };
 
-  // Admin action: Update court status
+  // Admin action: Update court status in database
   const handleUpdateCourtStatus = async (courtId: string, newStatus: "available" | "in_use" | "maintenance") => {
     if (!isUserAdminRole || !isAdmin) return;
     
@@ -511,7 +492,7 @@ function PickleballPage() {
             </Button>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-3">
             {courts.map((court) => (
               <div
                 key={court.id}
@@ -560,7 +541,536 @@ function PickleballPage() {
                 <div className="mt-6 flex flex-col gap-2">
                   <Button
                     variant="outline"
-                    disabled={court.status === "maintenance"}
-                    className={`w-full ${
-                      court.status === "maintenance"
-    
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedCourt(court.id);
+                      setActiveTab("book");
+                    }}
+                  >
+                    Book {court.name.split("—")[0]}
+                  </Button>
+
+                  {/* Admin Quick Status Override Controls */}
+                  {isUserAdminRole && isAdmin && (
+                    <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5 space-y-2">
+                      <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 text-center">
+                        Admin Status Override
+                      </p>
+                      <div className="grid grid-cols-3 gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={court.status === "available" ? "default" : "outline"}
+                          className="text-[10px] h-7 px-1"
+                          onClick={() => handleUpdateCourtStatus(court.id, "available")}
+                        >
+                          <CheckCircle2 className="mr-0.5 h-3 w-3" /> Available
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={court.status === "in_use" ? "default" : "outline"}
+                          className="text-[10px] h-7 px-1"
+                          onClick={() => handleUpdateCourtStatus(court.id, "in_use")}
+                        >
+                          <PlayCircle className="mr-0.5 h-3 w-3" /> In Play
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={court.status === "maintenance" ? "default" : "outline"}
+                          className="text-[10px] h-7 px-1"
+                          onClick={() => handleUpdateCourtStatus(court.id, "maintenance")}
+                        >
+                          <Wrench className="mr-0.5 h-3 w-3" /> Maint.
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Court Amenities / Info banner */}
+          <div className="grid gap-4 rounded-2xl border bg-muted/30 p-5 sm:grid-cols-3 text-sm">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-semibold">Paddle & Ball Rentals</p>
+                <p className="text-xs text-muted-foreground">₱50/paddle, ₱120 fresh ball 3-pack</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-semibold">Open Play & Clinics</p>
+                <p className="text-xs text-muted-foreground">Beginner-friendly community games</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <MapPin className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-semibold">Cafe by the Court</p>
+                <p className="text-xs text-muted-foreground">Enjoy your favorite drinks and snacks</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* SUB-VIEW 2: BOOK A COURT */}
+      {activeTab === "book" && (
+        <section className="mt-8">
+          {submittedBooking ? (
+            <div className="mx-auto max-w-lg rounded-2xl border bg-card p-8 text-center shadow-sm">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                <CheckCircle2 className="h-8 w-8" />
+              </div>
+              <h3 className="mt-4 text-2xl font-bold">Booking Submitted!</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                We reserved <strong className="text-foreground">{courtObj.name}</strong> for you on{" "}
+                <strong className="text-foreground">{bookingDate}</strong> ({selectedSlot}).
+              </p>
+
+              <div className="mt-6 rounded-xl bg-muted p-4 text-left text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span>Player Name:</span>
+                  <span className="font-semibold">{playerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Contact:</span>
+                  <span className="font-semibold">{playerContact}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payment Method:</span>
+                  <span className="font-semibold uppercase">{paymentMethod}</span>
+                </div>
+                {paymentMethod === "gcash" && (
+                  <div className="flex justify-between">
+                    <span>GCash Ref Number:</span>
+                    <span className="font-semibold text-primary">{gcashRef}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-1.5">
+                  <span>Total Amount:</span>
+                  <span className="font-semibold text-primary text-sm">₱{totalAmount}</span>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-2">
+                <Button onClick={() => setSubmittedBooking(false)}>
+                  Book Another Slot
+                </Button>
+                <Button variant="outline" onClick={() => setActiveTab("status")}>
+                  Return to Court Status
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleBookSubmit}
+              className="grid gap-8 lg:grid-cols-3"
+            >
+              {/* Left Column: Form Details */}
+              <div className="space-y-6 lg:col-span-2">
+                {/* Step 1: Court Selection */}
+                <div className="rounded-2xl border bg-card p-6 shadow-sm">
+                  <h3 className="text-lg font-bold">1. Select Court</h3>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    {courts.map((c) => (
+                      <button
+                        type="button"
+                        key={c.id}
+                        onClick={() => setSelectedCourt(c.id)}
+                        className={`rounded-xl border p-4 text-left transition ${
+                          selectedCourt === c.id
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        <p className="font-bold text-sm">{c.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{c.type}</p>
+                        <p className="mt-2 text-xs font-semibold text-primary">
+                          From ₱{c.rateDay}/hr
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 2: Date & Slot */}
+                <div className="rounded-2xl border bg-card p-6 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold">2. Date & Time</h3>
+                    {isUserAdminRole && isAdmin && (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                        Admin Controls Active
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Booking Date
+                    </label>
+                    <input
+                      type="date"
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      className="mt-1.5 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div className="mt-5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Time Slot (1 hour)
+                    </label>
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {TIME_SLOTS.map((slot) => {
+                        const taken = bookedSlots.includes(slot);
+                        const picked = selectedSlot === slot && !taken;
+                        return (
+                          <div key={slot} className="relative flex flex-col">
+                            <button
+                              type="button"
+                              disabled={taken && (!isAdmin || !isUserAdminRole)}
+                              onClick={() => {
+                                if (!taken) setSelectedSlot(slot);
+                              }}
+                              className={`w-full rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                                taken
+                                  ? "border-destructive/40 bg-destructive/10 text-destructive"
+                                  : picked
+                                    ? "border-emerald-600 bg-emerald-600 text-white font-semibold ring-2 ring-emerald-600/40"
+                                    : "border-emerald-600/40 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100"
+                              }`}
+                            >
+                              <span className="block">{slot}</span>
+                              <span className="block text-[10px] font-bold uppercase">
+                                {taken ? "Not Available" : "Available"}
+                              </span>
+                            </button>
+
+                            {/* Admin Actions for Time Slots */}
+                            {isUserAdminRole && isAdmin && (
+                              <div className="mt-1">
+                                {taken ? (
+                                  <button
+                                    type="button"
+                                    title="Admin: Free up this slot"
+                                    onClick={() => handleCancelBookingSlot(slot)}
+                                    className="flex items-center justify-center gap-1 text-[11px] w-full rounded-md bg-emerald-600 text-white py-1 font-semibold hover:bg-emerald-700 transition shadow-sm"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Make Available
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    title="Admin: Block slot and mark as Not Available"
+                                    onClick={() => handleBlockSlot(slot)}
+                                    className="flex items-center justify-center gap-1 text-[11px] w-full rounded-md bg-destructive text-destructive-foreground py-1 font-semibold hover:bg-destructive/90 transition shadow-sm"
+                                  >
+                                    <Ban className="h-3 w-3" />
+                                    Mark Not Available
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3: Equipment Rentals & Details */}
+                <div className="rounded-2xl border bg-card p-6 shadow-sm">
+                  <h3 className="text-lg font-bold">3. Contact & Rentals</h3>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Juan Dela Cruz"
+                        value={playerName}
+                        onChange={(e) => setPlayerName(e.target.value)}
+                        className="mt-1.5 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground">
+                        Mobile Number *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="0917-123-4567"
+                        value={playerContact}
+                        onChange={(e) => setPlayerContact(e.target.value)}
+                        className="mt-1.5 w-full rounded-xl border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Add-ons */}
+                  <div className="mt-5 space-y-3 border-t pt-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <div>
+                        <p className="font-semibold">Paddle Rental (₱50 each)</p>
+                        <p className="text-xs text-muted-foreground">Quality USAPA-approved paddles</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPaddlesNeeded(Math.max(0, paddlesNeeded - 1))}
+                        >
+                          -
+                        </Button>
+                        <span className="w-6 text-center font-bold text-sm">{paddlesNeeded}</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPaddlesNeeded(paddlesNeeded + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <div>
+                        <p className="font-semibold">Pickleball Can (₱120)</p>
+                        <p className="text-xs text-muted-foreground">3x Franklin X-40 tournament balls</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={ballsNeeded}
+                        onChange={(e) => setBallsNeeded(e.target.checked)}
+                        className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 4: Payment Method */}
+                <div className="rounded-2xl border bg-card p-6 shadow-sm">
+                  <h3 className="text-lg font-bold">4. Payment Method</h3>
+                  
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("counter")}
+                      className={`flex flex-col items-center justify-center rounded-xl border p-4 transition ${
+                        paymentMethod === "counter"
+                          ? "border-primary bg-primary/10 shadow-sm font-bold text-primary"
+                          : "border-border hover:bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      <CreditCard className="h-6 w-6 mb-1.5" />
+                      <span className="text-sm">Pay at Counter</span>
+                      <span className="text-[10px] font-normal">Cash or E-Wallet on arrival</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("gcash")}
+                      className={`flex flex-col items-center justify-center rounded-xl border p-4 transition ${
+                        paymentMethod === "gcash"
+                          ? "border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 shadow-sm font-bold"
+                          : "border-border hover:bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      <QrCode className="h-6 w-6 mb-1.5 text-blue-600" />
+                      <span className="text-sm">GCash Online</span>
+                      <span className="text-[10px] font-normal">Instant upload & confirmation</span>
+                    </button>
+                  </div>
+
+                  {/* GCash Payment Panel */}
+                  {paymentMethod === "gcash" && (
+                    <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 p-4 text-xs space-y-4">
+                      <div className="rounded-xl bg-white dark:bg-card p-3 border space-y-1">
+                        <p className="font-bold text-sm text-blue-800 dark:text-blue-300">
+                          GCash Account Details
+                        </p>
+                        <p className="text-muted-foreground">Account Name: <strong>Roadside Paddles</strong></p>
+                        <p className="text-muted-foreground">GCash Number: <strong className="text-foreground">0917-123-47</strong></p>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1">
+                          GCash Reference Number *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 1002 9832 1234"
+                          value={gcashRef}
+                          onChange={(e) => setGcashRef(e.target.value)}
+                          className="w-full rounded-xl border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1">
+                          Upload Payment Screenshot / Receipt *
+                        </label>
+                        <div className="mt-1 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-300 p-4 bg-background hover:bg-muted/50 transition cursor-pointer relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                          />
+                          <UploadCloud className="h-7 w-7 text-blue-500 mb-1" />
+                          <p className="text-xs font-semibold">Click to choose image or drop here</p>
+                          <p className="text-[10px] text-muted-foreground">PNG, JPG, WEBP up to 5MB</p>
+                        </div>
+
+                        {receiptPreview && (
+                          <div className="mt-3 relative w-28 h-28 rounded-lg overflow-hidden border">
+                            <img src={receiptPreview} alt="Receipt preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Order Summary */}
+              <div className="h-fit rounded-2xl border bg-card p-6 shadow-sm">
+                <h3 className="font-bold text-lg">Booking Summary</h3>
+
+                <div className="mt-4 space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Court:</span>
+                    <span className="font-semibold">{courtObj.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="font-semibold">{bookingDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Time Slot:</span>
+                    <span className="font-semibold">{selectedSlot}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Court Fee (1 hr):</span>
+                    <span className="font-semibold">₱{courtFee}</span>
+                  </div>
+                  {paddlesNeeded > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Paddle Rental ({paddlesNeeded}):</span>
+                      <span className="font-semibold">₱{paddleFee}</span>
+                    </div>
+                  )}
+                  {ballsNeeded && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pickleball Can:</span>
+                      <span className="font-semibold">₱{ballFee}</span>
+                    </div>
+                  )}
+                  <div className="mt-2 flex justify-between border-t pt-3 text-base font-bold">
+                    <span>Total:</span>
+                    <span className="text-primary">₱{totalAmount}</span>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {paymentMethod === "gcash" ? "GCash receipt will be verified by counter staff." : "Pay at the counter on arrival — cash or e-wallet."}
+                </p>
+
+                <Button type="submit" className="mt-5 w-full" disabled={saving}>
+                  {saving ? "Processing..." : "Confirm Reservation"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
+
+      {/* ADMIN MODAL: View Bookings & GCash Receipts */}
+      {showAdminBookingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="relative max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-card p-6 shadow-2xl border">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="text-xl font-bold">Admin: All Court Bookings</h3>
+                <p className="text-xs text-muted-foreground">Review player contact info, GCash reference numbers, and payment screenshots.</p>
+              </div>
+              <Button size="icon" variant="ghost" onClick={() => setShowAdminBookingsModal(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {allBookings.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">No bookings recorded yet.</p>
+              ) : (
+                allBookings.map((b) => (
+                  <div key={b.id || `${b.court_id}-${b.booking_date}-${b.time_slot}`} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border bg-muted/30 p-4 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">{b.player_name}</span>
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                          {b.court_id}
+                        </span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase font-semibold">
+                          {b.payment_method || "counter"}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground">Date: {b.booking_date} | Slot: {b.time_slot}</p>
+                      <p className="text-muted-foreground">Contact: <strong>{b.player_contact}</strong></p>
+                      {b.gcash_ref && (
+                        <p className="font-semibold text-blue-600 dark:text-blue-400">
+                          GCash Ref: {b.gcash_ref}
+                        </p>
+                      )}
+                    </div>
+
+                    {b.receipt_url && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage(b.receipt_url!)}
+                        className="flex items-center gap-1.5 rounded-xl border bg-background px-3 py-2 font-semibold hover:bg-muted transition text-xs"
+                      >
+                        <Eye className="h-4 w-4 text-primary" />
+                        View Receipt
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN IMAGE PREVIEW MODAL */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="relative max-w-md w-full rounded-2xl bg-card p-3 border">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="absolute top-2 right-2 rounded-full"
+              onClick={() => setPreviewImage(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <img src={previewImage} alt="Payment Receipt" className="w-full h-auto max-h-[75vh] object-contain rounded-xl" />
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DeliveryProofImage } from "@/components/DeliveryProof";
+import { SupportInbox } from '@/components/SupportChat';
 
 type MenuItem = Database["public"]["Tables"]["menu_items"]["Row"];
 type OrderStatus = Database["public"]["Enums"]["order_status"];
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: Admin,
 });
 
+// Built-in chime using Web Audio API (no external audio files needed)
 function playNewOrderSound() {
   try {
     const AudioCtx =
@@ -44,6 +46,7 @@ function playNewOrderSound() {
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
 
+    // Tone 1 (D5)
     const o1 = ctx.createOscillator();
     const g1 = ctx.createGain();
     o1.type = "sine";
@@ -55,6 +58,7 @@ function playNewOrderSound() {
     o1.start(now);
     o1.stop(now + 0.35);
 
+    // Tone 2 (A5)
     const o2 = ctx.createOscillator();
     const g2 = ctx.createGain();
     o2.type = "sine";
@@ -84,14 +88,26 @@ function Admin() {
     <main className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">Admin panel</h1>
-
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            playNewOrderSound();
+            toast.success("Sound test played!");
+          }}
+        >
+          <Volume2 className="h-4 w-4" />
+          Test Alert Chime
+        </Button>
       </div>
 
       <Tabs defaultValue="orders" className="mt-6">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="menu">Menu</TabsTrigger>
           <TabsTrigger value="riders">Rider applications</TabsTrigger>
+          <TabsTrigger value="support">Support</TabsTrigger>
         </TabsList>
         <TabsContent value="orders">
           <OrdersTab />
@@ -102,6 +118,7 @@ function Admin() {
         <TabsContent value="riders">
           <RidersTab />
         </TabsContent>
+        <TabsContent value="support"><SupportInbox admin /></TabsContent>
       </Tabs>
     </main>
   );
@@ -133,6 +150,7 @@ function OrdersTab() {
     },
   });
 
+  // Lookup map to get the rider's registered full name
   const { data: riderMap = {} } = useQuery({
     queryKey: ["admin-rider-map"],
     queryFn: async () => {
