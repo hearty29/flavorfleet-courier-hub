@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCheck, Headphones, Loader2, MessageCircle, Send } from 'lucide-react';
+import { CheckCheck, Headphones, Loader2, MessageCircle, Send, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { validateChatMessage, type ChatKind } from '@/lib/support-chat';
@@ -96,8 +96,18 @@ export function SupportInbox({ admin = false }: { admin?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const qc = useQueryClient();
   const active = threads.data?.find(t => t.id === selected);
+  const remove = useMutation({ mutationFn: async (id: string) => {
+    const { error } = await supabase.rpc('delete_support_conversation', { _conversation: id });
+    if (error) throw error;
+  }, onSuccess: (_data, id) => {
+    setConfirmDelete(null);
+    if (selected === id) setSelected(null);
+    void qc.invalidateQueries({ queryKey: ['support-threads'] });
+    void qc.invalidateQueries({ queryKey: ['support-messages'] });
+  } });
   const resolve = useMutation({ mutationFn: async () => {
     if (!active) return;
     const { error } = await supabase.rpc('resolve_support_conversation', { _conversation: active.id, _resolved: active.status !== 'resolved' });
@@ -114,13 +124,22 @@ export function SupportInbox({ admin = false }: { admin?: boolean }) {
         {threads.isPending && <p className="p-4 text-sm text-muted-foreground">Loading conversations…</p>}
         {threads.isError && <div className="p-4 text-sm text-destructive">Inbox unavailable. <Button variant="link" onClick={() => threads.refetch()}>Retry</Button></div>}
         {shown?.length === 0 && <p className="p-6 text-sm text-muted-foreground">No conversations.</p>}
-        {shown?.map(t => <Button key={t.id} variant="ghost" className={`h-auto w-full justify-start rounded-none border-b px-4 py-3 text-left ${selected === t.id ? 'bg-muted' : ''}`} onClick={() => setSelected(t.id)}>
-          <div className="min-w-0 w-full">
-            <div className="flex items-center justify-between gap-2"><span className="truncate font-semibold">{t.display_name}</span>{t.unread && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="Unread messages" />}</div>
-            <p className="text-xs font-normal text-muted-foreground">{t.kind === 'order_rider' ? `Order #${t.order_id?.slice(0, 8)}` : t.kind === 'rider_admin' ? 'Rider support' : 'Customer support'} · {t.status}</p>
-            <p className="mt-1 truncate text-xs font-normal">{t.last_message || 'No messages yet'}</p>
+        {remove.isError && <p role="alert" className="px-4 py-2 text-sm text-destructive">Could not delete the conversation. Please try again.</p>}
+        {shown?.map(t => <div key={t.id} className={`flex items-stretch border-b ${selected === t.id ? 'bg-muted' : ''}`}>
+          <Button variant="ghost" className="h-auto min-w-0 flex-1 justify-start rounded-none px-4 py-3 text-left" onClick={() => { setSelected(t.id); setConfirmDelete(null); }}>
+            <div className="min-w-0 w-full">
+              <div className="flex items-center justify-between gap-2"><span className="truncate font-semibold">{t.display_name}</span>{t.unread && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label="Unread messages" />}</div>
+              <p className="text-xs font-normal text-muted-foreground">{t.kind === 'order_rider' ? `Order #${t.order_id?.slice(0, 8)}` : t.kind === 'rider_admin' ? 'Rider support' : 'Customer support'} · {t.status}</p>
+              <p className="mt-1 truncate text-xs font-normal">{t.last_message || 'No messages yet'}</p>
+            </div>
+          </Button>
+          <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-2">
+            {confirmDelete === t.id ? <>
+              <Button size="sm" variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate(t.id)}>{remove.isPending ? <Loader2 className="animate-spin" /> : 'Delete'}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>Keep</Button>
+            </> : <Button size="icon" variant="ghost" aria-label={`Delete conversation with ${t.display_name}`} onClick={() => setConfirmDelete(t.id)}><Trash2 className="size-4" /></Button>}
           </div>
-        </Button>)}
+        </div>)}
       </aside>
       <div className={`${active ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col`}>
         {active ? <>

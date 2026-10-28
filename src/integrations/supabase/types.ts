@@ -503,6 +503,10 @@ export type Database = {
       }
       can_access_support: { Args: { _conversation: string }; Returns: boolean }
       cancel_my_order: { Args: { _order: string }; Returns: undefined }
+      delete_support_conversation: {
+        Args: { _conversation: string }
+        Returns: undefined
+      }
       get_booked_slots: {
         Args: { _court: string; _date: string }
         Returns: string[]
