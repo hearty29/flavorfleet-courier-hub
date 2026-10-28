@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { loadAssignedRider } from "@/lib/order-rider";
 import { signedProfilePhotoUrl } from "@/lib/verification";
 import { DeliveryProofImage } from "@/components/DeliveryProof";
+import { ChatButton, SupportInbox } from '@/components/SupportChat';
 
 export const Route = createFileRoute("/_authenticated/orders")({
   head: () => ({
@@ -168,6 +169,7 @@ function Orders() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-3xl font-bold">My orders</h1>
+      <div className="mt-3"><ChatButton kind="customer_admin" /></div>
       {isLoading && <p className="mt-4 text-muted-foreground">Loading orders...</p>}
       {!isLoading && !orders.length && (
         <p className="mt-4 text-muted-foreground">No orders yet. Head to the menu to place an order!</p>
@@ -189,6 +191,7 @@ function Orders() {
             {/* Live Visual Tracker */}
             <OrderTracker status={o.status} />
             <AssignedRider order={o} customerId={uid} />
+            {o.rider_id && <div className="mt-3"><ChatButton kind="order_rider" orderId={o.id} label="Chat with rider" /></div>}
             <DeliveryProofImage path={o.proof_of_delivery_path} />
 
             <ul className="mt-4 divide-y divide-border/40 text-sm">
@@ -216,6 +219,7 @@ function Orders() {
           </article>
         ))}
       </div>
+      <section className="mt-8"><h2 className="mb-3 text-xl font-bold">My conversations</h2><SupportInbox /></section>
     </main>
   );
 }

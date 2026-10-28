@@ -17,6 +17,7 @@ import { CartProvider } from "@/lib/cart";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { FloatingSupport } from '@/components/SupportChat';
 
 function NotFoundComponent() {
   return (
@@ -116,6 +117,7 @@ function RootComponent() {
 
           <SiteHeader />
           <Outlet />
+          <FloatingSupport />
           <Toaster richColors position="top-center" />
         </CartProvider>
       </AuthProvider>
