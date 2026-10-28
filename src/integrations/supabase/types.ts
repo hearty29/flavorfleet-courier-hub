@@ -1,4 +1,4 @@
-import type { Tournament, TournamentTeam, TournamentMatch } from "@/lib/tournaments";
+import type { Tournament, TournamentTeam, TournamentMatch, TournamentPrize, TournamentResult, TournamentAudit } from "@/lib/tournaments";
 
 export type Json =
   | string
@@ -16,6 +16,9 @@ export type Database = {
   }
   public: {
     Tables: {
+      pickleball_audit: { Row: TournamentAudit; Insert: Partial<TournamentAudit>; Update: Partial<TournamentAudit>; Relationships: [] }
+      pickleball_results: { Row: TournamentResult; Insert: Partial<TournamentResult>; Update: Partial<TournamentResult>; Relationships: [] }
+      pickleball_prizes: { Row: TournamentPrize; Insert: Partial<TournamentPrize>; Update: Partial<TournamentPrize>; Relationships: [] }
       pickleball_tournaments: {
         Row: Tournament
         Insert: Partial<Tournament>
@@ -510,6 +513,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_pickleball_event: { Args: { _id: string | null; _title: string; _description: string; _venue: string; _starts_at: string; _max_teams: number; _points_to_win: number; _format: string; _requires_approval: boolean; _currency: string; _pool: number | null; _prizes: Json; _revision: number | null }; Returns: string }
+      save_pickleball_prizes: { Args: { _event: string; _currency: string; _pool: number | null; _prizes: Json; _revision: number }; Returns: undefined }
+      manage_pickleball_team: { Args: { _tournament: string; _team: string | null; _name: string; _player_one: string; _player_two: string; _phone: string; _status: string; _reason: string; _confirm: boolean; _revision: number }; Returns: string }
+      admin_record_pickleball_result: { Args: { _match: string; _score_a: number | null; _score_b: number | null; _clear: boolean; _reason: string; _confirm: boolean; _revision: number }; Returns: undefined }
+      move_pickleball_slot: { Args: { _from_match: string; _from_slot: string; _to_match: string; _to_slot: string; _reason: string; _confirm: boolean; _revision: number }; Returns: undefined }
+
       save_pickleball_tournament: {
         Args: { _title: string; _description: string; _venue: string; _starts_at: string; _max_teams: number; _points_to_win: number; _id?: string }
         Returns: string

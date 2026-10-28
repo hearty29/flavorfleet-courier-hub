@@ -71,6 +71,13 @@
       "when": 1793217000000,
       "tag": "0009_personal_inbox_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793220000000,
+      "tag": "0010_advanced_tournaments",
+      "breakpoints": true
     }
   ]
 }
