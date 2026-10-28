@@ -117,6 +117,9 @@ function RootComponent() {
 
           <SiteHeader />
           <Outlet />
+          <footer className="border-t px-4 py-6 text-center text-sm text-muted-foreground">
+            © Roadside Paddles 2026
+          </footer>
           <FloatingSupport />
           <Toaster richColors position="top-center" />
         </CartProvider>
