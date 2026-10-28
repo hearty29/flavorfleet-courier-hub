@@ -1,3 +1,4 @@
+import { Tournaments } from "@/components/tournaments/TournamentManager";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -114,7 +115,11 @@ function Admin() {
           <TabsTrigger value="menu">Menu</TabsTrigger>
           <TabsTrigger value="riders">Rider applications</TabsTrigger>
           <TabsTrigger value="support">Support</TabsTrigger>
+          <TabsTrigger value="tournaments">Tournaments</TabsTrigger>
         </TabsList>
+        <TabsContent value="tournaments">
+          <Tournaments />
+        </TabsContent>
         <TabsContent value="orders">
           <OrdersTab />
         </TabsContent>

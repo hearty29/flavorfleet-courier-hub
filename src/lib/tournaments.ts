@@ -7,13 +7,19 @@ export type Tournament = {
   max_teams: number;
   points_to_win: number;
   status: "registration" | "in_progress" | "completed" | "cancelled";
+  format: "single" | "double";
+  requires_approval: boolean;
+  currency: string;
+  prize_pool: number | null;
+  revision: number;
   created_by: string;
   created_at: string;
 };
 export type TournamentTeam = {
   id: string;
   tournament_id: string;
-  captain_id: string;
+  captain_id: string | null;
+  registration_status: "pending" | "approved" | "rejected" | "withdrawn";
   name: string;
   player_one: string;
   player_two: string;
@@ -29,7 +35,15 @@ export type TournamentMatch = {
   winner_id: string | null;
   score_a: number | null;
   score_b: number | null;
-  state: "waiting" | "ready" | "completed" | "bye";
+  state: "waiting" | "ready" | "completed" | "bye" | "empty" | "not_needed";
+  bracket: "winners" | "losers" | "championship";
+  source_a_match: string | null;
+  source_b_match: string | null;
+  source_a_outcome: "winner" | "loser";
+  source_b_outcome: "winner" | "loser";
+  seed_a_id: string | null;
+  seed_b_id: string | null;
+  activation_match: string | null;
   court: string;
   scheduled_at: string | null;
 };
@@ -62,4 +76,38 @@ export function validMatchScore(a: number, b: number, target: number) {
     Math.max(a, b) >= target &&
     Math.abs(a - b) >= 2
   );
+}
+
+export type TournamentPrize = {
+  id: string;
+  tournament_id: string;
+  title: string;
+  amount: number | null;
+  description: string;
+  non_cash_reward: string;
+  placement: number | null;
+  recipient_team_id: string | null;
+  recipient_player: string | null;
+  sort_order: number;
+};
+export type TournamentResult = {
+  tournament_id: string;
+  team_id: string;
+  placement: number | null;
+  status: "placed" | "withdrawn";
+};
+export type TournamentAudit = {
+  id: string;
+  tournament_id: string;
+  action: string;
+  reason: string;
+  created_at: string;
+  before_data: unknown;
+  after_data: unknown;
+};
+export function prizeMoney(amount: number, currency = "PHP") {
+  return new Intl.NumberFormat("en-PH", { style: "currency", currency }).format(amount);
+}
+export function matchLabel(match: Pick<TournamentMatch, "bracket" | "round_no" | "position">) {
+  return `${match.bracket === "losers" ? "L" : match.bracket === "championship" ? "C" : "W"}${match.round_no}-${match.position}`;
 }

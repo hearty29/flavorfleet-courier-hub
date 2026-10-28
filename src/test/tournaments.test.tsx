@@ -8,6 +8,8 @@ import {
   type Tournament,
   type TournamentTeam,
   type TournamentMatch,
+  type TournamentPrize,
+  type TournamentResult,
 } from "@/lib/tournaments";
 
 const mocks = vi.hoisted(() => ({
@@ -20,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   events: [] as Tournament[],
   teams: [] as TournamentTeam[],
   matches: [] as TournamentMatch[],
+  prizes: [] as TournamentPrize[],
+  results: [] as TournamentResult[],
 }));
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({ options }),
@@ -65,6 +69,13 @@ function mount(Component: ComponentType = Route.options.component as ComponentTy
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   mocks.uid = null;
   mocks.admin = false;
   mocks.failed = false;
@@ -78,6 +89,11 @@ beforeEach(() => {
       max_teams: 8,
       points_to_win: 11,
       status: "registration",
+      format: "double",
+      requires_approval: true,
+      currency: "PHP",
+      prize_pool: null,
+      revision: 2,
       created_by: "admin",
       created_at: "2026-10-28T00:00:00Z",
     },
@@ -86,6 +102,7 @@ beforeEach(() => {
     {
       id: "alpha",
       tournament_id: "event",
+      registration_status: "approved",
       captain_id: "other",
       name: "Alpha",
       player_one: "Alice",
@@ -95,6 +112,7 @@ beforeEach(() => {
     {
       id: "beta",
       tournament_id: "event",
+      registration_status: "approved",
       captain_id: "second",
       name: "Beta",
       player_one: "Bea",
@@ -103,6 +121,8 @@ beforeEach(() => {
     },
   ];
   mocks.matches = [];
+  mocks.prizes = [];
+  mocks.results = [];
   mocks.rpc.mockResolvedValue({ data: "event", error: null });
   mocks.from.mockImplementation((table: string) => {
     const query = {
@@ -110,6 +130,7 @@ beforeEach(() => {
       eq: () => query,
       order: () => query,
       in: () => query,
+      limit: () => query,
       then: (resolve: (value: unknown) => unknown) =>
         Promise.resolve({
           data:
@@ -119,7 +140,11 @@ beforeEach(() => {
                 ? mocks.teams
                 : table === "pickleball_matches"
                   ? mocks.matches
-                  : [],
+                  : table === "pickleball_prizes"
+                    ? mocks.prizes
+                    : table === "pickleball_results"
+                      ? mocks.results
+                      : [],
           error: mocks.failed ? { message: "Unavailable" } : null,
         }).then(resolve),
     };
@@ -208,7 +233,7 @@ describe("tournament administration and results", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Create tournament" }));
     await waitFor(() =>
       expect(mocks.rpc).toHaveBeenCalledWith(
-        "save_pickleball_tournament",
+        "save_pickleball_event",
         expect.objectContaining({
           _title: "Summer Cup",
           _venue: "Roadside Paddles",
@@ -235,6 +260,14 @@ describe("tournament administration and results", () => {
       {
         id: "match",
         tournament_id: "event",
+        bracket: "winners",
+        source_a_match: null,
+        source_b_match: null,
+        source_a_outcome: "winner",
+        source_b_outcome: "winner",
+        seed_a_id: "alpha",
+        seed_b_id: "beta",
+        activation_match: null,
         round_no: 1,
         position: 1,
         team_a_id: "alpha",
@@ -249,7 +282,7 @@ describe("tournament administration and results", () => {
     ];
     mount();
     fireEvent.click(await screen.findByRole("button", { name: "Enter score" }));
-    const card = screen.getByRole("article", { name: "Match 1-1" });
+    const card = screen.getByRole("article", { name: "Match W1-1" });
     fireEvent.change(within(card).getByLabelText("Alpha"), { target: { value: "11" } });
     fireEvent.change(within(card).getByLabelText("Beta"), { target: { value: "10" } });
     fireEvent.click(within(card).getByRole("button", { name: "Save result" }));
@@ -258,7 +291,11 @@ describe("tournament administration and results", () => {
     fireEvent.change(within(card).getByLabelText("Beta"), { target: { value: "9" } });
     fireEvent.click(within(card).getByRole("button", { name: "Save result" }));
     await waitFor(() =>
-      expect(mocks.rpc).toHaveBeenCalledWith("score_pickleball_match", {
+      expect(mocks.rpc).toHaveBeenCalledWith("admin_record_pickleball_result", {
+        _clear: false,
+        _reason: "",
+        _confirm: false,
+        _revision: 2,
         _match: "match",
         _score_a: 11,
         _score_b: 9,
@@ -267,10 +304,22 @@ describe("tournament administration and results", () => {
   });
   it("shows champions when the final is completed", async () => {
     mocks.events[0]!.status = "completed";
+    mocks.results = [
+      { tournament_id: "event", team_id: "beta", placement: 1, status: "placed" },
+      { tournament_id: "event", team_id: "alpha", placement: 2, status: "placed" },
+    ];
     mocks.matches = [
       {
         id: "final",
         tournament_id: "event",
+        bracket: "winners",
+        source_a_match: null,
+        source_b_match: null,
+        source_a_outcome: "winner",
+        source_b_outcome: "winner",
+        seed_a_id: "alpha",
+        seed_b_id: "beta",
+        activation_match: null,
         round_no: 2,
         position: 1,
         team_a_id: "alpha",
@@ -301,5 +350,224 @@ describe("score and round display rules", () => {
   it("labels the final and semifinals for differently sized brackets", () => {
     expect(roundLabel(1, 1)).toBe("Final");
     expect(roundLabel(2, 3)).toBe("Semifinals");
+  });
+});
+
+describe("advanced tournament administration", () => {
+  beforeEach(() => {
+    mocks.admin = true;
+    mocks.uid = "admin";
+  });
+  it("creates custom prizes atomically with a double elimination event", async () => {
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "Create tournament" }));
+    const d = within(screen.getByRole("dialog"));
+    fireEvent.change(d.getByLabelText("Tournament name"), { target: { value: "Prize Cup" } });
+    fireEvent.change(d.getByLabelText("Start date and time (your local time)"), {
+      target: { value: "2099-05-10T09:00" },
+    });
+    fireEvent.click(d.getByRole("button", { name: "Add prize" }));
+    fireEvent.change(d.getByLabelText("Prize title"), { target: { value: "Community champion" } });
+    fireEvent.change(d.getByLabelText("Prize 1 amount"), { target: { value: "1000.50" } });
+    fireEvent.change(d.getByLabelText("Prize 1 non-cash reward"), { target: { value: "Trophy" } });
+    fireEvent.change(d.getByLabelText("Prize 1 assignment"), { target: { value: "placement" } });
+    fireEvent.click(d.getByRole("button", { name: "Create tournament" }));
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "save_pickleball_event",
+        expect.objectContaining({
+          _format: "double",
+          _requires_approval: true,
+          _currency: "PHP",
+          _prizes: [
+            expect.objectContaining({
+              title: "Community champion",
+              amount: 1000.5,
+              placement: 1,
+              non_cash_reward: "Trophy",
+            }),
+          ],
+        }),
+      ),
+    );
+  });
+  it("edits and removes custom prizes after completion and displays assigned awards", async () => {
+    mocks.events[0]!.status = "completed";
+    mocks.results = [{ tournament_id: "event", team_id: "alpha", placement: 1, status: "placed" }];
+    mocks.prizes = [
+      {
+        id: "prize",
+        tournament_id: "event",
+        title: "MVP",
+        amount: null,
+        description: "Great teamwork",
+        non_cash_reward: "Paddle",
+        placement: null,
+        recipient_team_id: "alpha",
+        recipient_player: "Alice",
+        sort_order: 0,
+      },
+    ];
+    mount();
+    expect(await screen.findByText("MVP — Alice · Paddle")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Manage prizes" }));
+    const d = within(screen.getByRole("dialog"));
+    fireEvent.click(d.getByRole("button", { name: "Remove prize 1" }));
+    fireEvent.click(d.getByRole("button", { name: "Save prizes" }));
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "save_pickleball_prizes",
+        expect.objectContaining({ _event: "event", _prizes: [], _revision: 2 }),
+      ),
+    );
+  });
+  it("requires approved teams before enabling the draw", async () => {
+    mocks.teams.forEach((team) => {
+      team.registration_status = "pending";
+    });
+    mount();
+    expect(await screen.findByRole("button", { name: "Generate draw & start" })).toBeDisabled();
+    expect(screen.getAllByText("pending")).toHaveLength(2);
+  });
+  it("shows approval controls and submits the changed participation status", async () => {
+    mocks.teams[0]!.registration_status = "pending";
+    mount();
+    const buttons = await screen.findAllByRole("button", { name: "Manage team" });
+    await waitFor(() => expect(buttons[0]).toBeEnabled());
+    fireEvent.click(buttons[0]!);
+    const d = within(screen.getByRole("dialog"));
+    fireEvent.change(d.getByLabelText("Participation"), { target: { value: "approved" } });
+    fireEvent.change(d.getByLabelText("Contact phone"), { target: { value: "09000" } });
+    fireEvent.click(d.getByRole("button", { name: "Save team" }));
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "manage_pickleball_team",
+        expect.objectContaining({ _team: "alpha", _status: "approved", _revision: 2 }),
+      ),
+    );
+  });
+  it("preserves a prize draft and reports a stale revision error", async () => {
+    mount();
+    const button = await screen.findByRole("button", { name: "Manage prizes" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    const d = within(screen.getByRole("dialog"));
+    fireEvent.click(d.getByRole("button", { name: "Add prize" }));
+    fireEvent.change(d.getByLabelText("Prize title"), { target: { value: "Special prize" } });
+    mocks.rpc.mockResolvedValueOnce({
+      error: { message: "Tournament changed. Refresh and try again." },
+    });
+    fireEvent.click(d.getByRole("button", { name: "Save prizes" }));
+    await waitFor(() =>
+      expect(mocks.error).toHaveBeenCalledWith("Tournament changed. Refresh and try again."),
+    );
+    expect(d.getByLabelText("Prize title")).toHaveValue("Special prize");
+  });
+});
+
+describe("bracket corrections", () => {
+  beforeEach(() => {
+    mocks.uid = "admin";
+    mocks.admin = true;
+    mocks.events[0]!.status = "in_progress";
+    mocks.matches = [
+      {
+        id: "w1",
+        tournament_id: "event",
+        bracket: "winners",
+        round_no: 1,
+        position: 1,
+        team_a_id: "alpha",
+        team_b_id: "beta",
+        winner_id: "alpha",
+        score_a: 11,
+        score_b: 9,
+        state: "completed",
+        court: "",
+        scheduled_at: null,
+        source_a_match: null,
+        source_b_match: null,
+        source_a_outcome: "winner",
+        source_b_outcome: "winner",
+        seed_a_id: "alpha",
+        seed_b_id: "beta",
+        activation_match: null,
+      },
+      {
+        id: "l1",
+        tournament_id: "event",
+        bracket: "losers",
+        round_no: 1,
+        position: 1,
+        team_a_id: "beta",
+        team_b_id: null,
+        winner_id: null,
+        score_a: null,
+        score_b: null,
+        state: "waiting",
+        court: "",
+        scheduled_at: null,
+        source_a_match: "w1",
+        source_b_match: null,
+        source_a_outcome: "loser",
+        source_b_outcome: "winner",
+        seed_a_id: null,
+        seed_b_id: null,
+        activation_match: null,
+      },
+    ];
+  });
+  it("shows both bracket sections and sends explicit confirmation when clearing a result", async () => {
+    mount();
+    expect(await screen.findByRole("region", { name: "Loser Bracket" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Winner Bracket" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Correct result" }));
+    const card = within(screen.getByRole("article", { name: "Match W1-1" }));
+    expect(card.getByLabelText("Reason for correction")).toBeRequired();
+    const confirmation = card.getByRole("checkbox", { name: /I confirm resetting/ });
+    expect(confirmation).toBeRequired();
+    fireEvent.change(card.getByLabelText("Reason for correction"), {
+      target: { value: "Replay required" },
+    });
+    fireEvent.click(confirmation);
+    fireEvent.click(card.getByLabelText("Clear result for replay"));
+    fireEvent.click(card.getByRole("button", { name: "Save result" }));
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "admin_record_pickleball_result",
+        expect.objectContaining({
+          _match: "w1",
+          _clear: true,
+          _reason: "Replay required",
+          _confirm: true,
+          _revision: 2,
+        }),
+      ),
+    );
+  });
+  it("submits a cross-bracket slot swap with its reason and revision", async () => {
+    mount();
+    const button = await screen.findByRole("button", { name: "Move teams" });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    const dialog = within(screen.getByRole("dialog"));
+    fireEvent.change(dialog.getByLabelText("Move from"), { target: { value: "w1:a" } });
+    fireEvent.change(dialog.getByLabelText("Swap with"), { target: { value: "l1:b" } });
+    fireEvent.change(dialog.getByLabelText("Reason for correction"), {
+      target: { value: "Placement correction" },
+    });
+    fireEvent.click(dialog.getByRole("checkbox", { name: /I confirm resetting/ }));
+    fireEvent.click(dialog.getByRole("button", { name: "Confirm placement correction" }));
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith("move_pickleball_slot", {
+        _from_match: "w1",
+        _from_slot: "a",
+        _to_match: "l1",
+        _to_slot: "b",
+        _reason: "Placement correction",
+        _confirm: true,
+        _revision: 2,
+      }),
+    );
   });
 });

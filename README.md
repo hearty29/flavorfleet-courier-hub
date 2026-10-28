@@ -63,18 +63,60 @@ can follow teams, brackets and results. Signed-in players can register one doubl
 team per event and withdraw before the draw starts. Team and player names are
 public; contact phone numbers are visible only to the team captain and admins.
 
-Admins manage events on the same page:
+Admins manage events on the same page or **Admin Dashboard → Tournaments**:
 
-1. Choose **Create tournament**, enter the venue, future start time, capacity
-   (2–32 teams) and points target (11, 15 or 21).
-2. Edit the event or remove entries while registration is open. Registration
-   closes at the start time, or when the admin starts the draw.
-3. Choose **Generate draw & start** to randomly seed a single elimination bracket.
-   Byes advance automatically. The draw and teams are then locked.
-4. Assign courts/times and enter match scores. One game decides each match; the
-   winner must reach the selected target and lead by at least two points.
-   Saved results are final. Winners advance automatically, and the final result
-   displays the champions.
+1. Choose **Create tournament**. Enter the venue, future start time, capacity
+   (2–32 teams), points target (11, 15 or 21), single/double elimination, and
+   whether registrations require approval. Configure prizes in the same form.
+2. Use **Add team** or **Manage team** to register, approve, reject, edit or
+   withdraw a team. Admin-entered teams do not need a player account. Pending and
+   approved entries reserve capacity; only approved teams enter the draw.
+3. Choose **Generate draw & start** to randomly seed approved teams. Byes advance
+   automatically. Double elimination shows green Winner, red Loser, and gold
+   Championship sections with team names, scores, and connected advancement paths.
+   The championship resets if its losing finalist had no prior loss.
+4. Assign courts/times and save scores. A winner must reach the target and lead
+   by two points. Winners and losers automatically advance to their next matches.
+5. Use **Correct result** to replace or clear a score, or **Move teams** to swap
+   bracket slots and their advancement paths. Both require a reason and explicit
+   confirmation before affected results are reset. Unrelated results remain.
+   Cycles, self-matches, cross-event moves, and rewiring the conditional reset final
+   are rejected. The draw is not regenerated; prior match records remain in history.
+6. Team names and player details can be corrected after the draw. Withdrawing a
+   team resets its affected path and records the withdrawal; adding new entrants
+   or changing the format/scoring rules after the draw is not allowed.
+7. Completing the final produces each team's placement and assigned prizes.
+   Correcting a result reopens the tournament and removes provisional final awards
+   until the bracket completes again. Teams eliminated in the same round share
+   a placement. Withdrawn teams are explicitly labeled without a placement.
+
+### Custom prizes
+
+**Create tournament**, **Edit event**, and **Manage prizes** accept any number of
+custom awards. Each has a title, optional cash amount, description and non-cash
+reward. Use automatic final placement (1–32) for Champion/Runner-up/other rankings,
+or manually choose a registered team and optionally one of its players for MVP,
+Best Player or any special award. Unassigned custom awards show their rewards
+before registration; their recipient can be chosen later.
+
+Prizes can be added, changed or removed at any tournament stage, including after
+completion. Final award assignments are derived from the latest prize list and
+results; they are not payments. PHP is the default currency. Supported currencies
+and decimal precision are shared by the UI and SQL catalog (for example PHP 2,
+JPY 0, KWD 3). Amounts must be nonnegative, at most 999,999,999, and use the selected
+currency's precision. Changing currencies does not perform foreign-exchange
+conversion. The optional announced pool is entered separately; prizes are per
+recipient, including each team at a shared placement.
+
+The public event page displays prizes, final standings and each team's awards.
+Private contact details and admin history remain protected by database policies.
+Mutation RPCs serialize changes on the event; editors send the revision they
+opened with and reject stale saves.
+
+**Compatibility:** existing single-elimination events retain their format and
+recorded results. The original score RPC still rejects replaying a recorded match.
+The new admin correction RPC intentionally replaces the previous UI rule that
+saved results were immutable, while retaining an audit history.
 
 Match schedules are informational and do not reserve courts in the separate
 court booking system. Dates are entered and displayed in the viewer's local time.
@@ -103,8 +145,27 @@ SELECT to_regclass('public.pickleball_tournaments'),
        to_regclass('public.pickleball_matches');
 ```
 
-All three results should contain table names. Then publish the updated frontend,
-sign in as an admin and create your first event.
+All three results should contain table names.
+
+For the advanced bracket/prize system, apply the complete
+`drizzle/migrations/0010_advanced_tournaments.sql` after the earlier migrations
+(including the tournament migration 0008). Run it in the connected **Lovable Cloud
+→ Database → Manage → SQL editor** before publishing this frontend. Existing
+installations of 0008 should run only the new migration, not recreate 0008.
+Migration 0010 runs in one transaction and can be reapplied without rebuilding
+draws or clearing history/prizes.
+
+Verify with:
+
+```sql
+SELECT to_regclass('public.pickleball_prizes'),
+       to_regclass('public.pickleball_results'),
+       to_regprocedure('public.move_pickleball_slot(uuid,text,uuid,text,text,boolean,integer)');
+```
+
+All results should be non-null. Publish the frontend, sign in as an admin, create a
+small test event, approve teams and complete the draw. GitHub changes alone do
+not execute SQL or publish the live site.
 
 ### Local tournament checks
 
@@ -117,6 +178,15 @@ registration limits, permissions, private contacts and cancellation:
 createdb flavorfleet_tournament_test
 psql -X -v ON_ERROR_STOP=1 -d flavorfleet_tournament_test -f scripts/test-tournaments.sql
 dropdb flavorfleet_tournament_test
+```
+
+For double elimination, history, corrections, approval, custom awards/currencies,
+and migration reapplication over populated data:
+
+```sh
+createdb flavorfleet_advanced_test
+psql -X -v ON_ERROR_STOP=1 -d flavorfleet_advanced_test -f scripts/test-advanced-tournaments.sql
+dropdb flavorfleet_advanced_test
 ```
 
 Run `npm test`, `npx tsc --noEmit` and `npm run build` for frontend checks.
