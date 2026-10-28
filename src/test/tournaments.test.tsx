@@ -517,6 +517,19 @@ describe("bracket corrections", () => {
       },
     ];
   });
+  it("expands the live bracket and restores the page with Escape", async () => {
+    mount();
+    const expand = await screen.findByRole("button", { name: "Expand bracket" });
+    fireEvent.click(expand);
+    expect(screen.getByRole("dialog", { name: "Live tournament bracket" })).toBeInTheDocument();
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(
+      screen.queryByRole("dialog", { name: "Live tournament bracket" }),
+    ).not.toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe("hidden");
+    expect(expand).toHaveFocus();
+  });
   it("shows both bracket sections and sends explicit confirmation when clearing a result", async () => {
     mount();
     expect(await screen.findByRole("region", { name: "Loser Bracket" })).toBeInTheDocument();
