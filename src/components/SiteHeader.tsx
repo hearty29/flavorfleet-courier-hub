@@ -21,17 +21,17 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl flex-col gap-2 px-3 py-3 sm:px-4 xl:min-h-16 xl:flex-row xl:py-2">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-3 py-3 sm:px-4">
         <Link
           to="/"
-          className="shrink-0 font-display text-xl font-extrabold text-primary sm:text-2xl xl:mr-auto"
+          className="shrink-0 text-center font-display text-xl font-extrabold text-primary sm:text-2xl"
         >
           Roadside<span className="text-foreground"> Paddles</span>
         </Link>
 
         <nav
           aria-label="Main navigation"
-          className="flex w-full flex-wrap items-center justify-center gap-1 sm:gap-2 xl:w-auto"
+          className="flex w-full flex-wrap items-center justify-center gap-1 sm:gap-2"
         >
           {/* About Us Tab */}
           <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
