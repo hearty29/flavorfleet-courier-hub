@@ -233,7 +233,7 @@ describe("tournament administration and results", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Create tournament" }));
     await waitFor(() =>
       expect(mocks.rpc).toHaveBeenCalledWith(
-        "save_pickleball_event",
+        "save_pickleball_event_with_stream",
         expect.objectContaining({
           _title: "Summer Cup",
           _venue: "Roadside Paddles",
@@ -242,6 +242,56 @@ describe("tournament administration and results", () => {
         }),
       ),
     );
+  });
+  it("edits broadcast status and replay after completion using the current revision", async () => {
+    mocks.events[0]!.status = "completed";
+    mocks.events[0]!.livestream = {
+      platform: "youtube",
+      status: "live",
+      url: "https://youtu.be/abcdefghijk",
+      replay_url: "",
+    };
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit event" }));
+    const d = within(screen.getByRole("dialog"));
+    expect(d.getByLabelText("Broadcast video link")).toHaveValue("https://youtu.be/abcdefghijk");
+    fireEvent.change(d.getByLabelText("Broadcast status"), { target: { value: "ended" } });
+    fireEvent.change(d.getByLabelText("Replay video link (optional)"), {
+      target: { value: "https://youtu.be/12345678901" },
+    });
+    fireEvent.click(d.getByRole("button", { name: "Save tournament" }));
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "save_pickleball_event_with_stream",
+        expect.objectContaining({
+          _id: "event",
+          _revision: 2,
+          _max_teams: 8,
+          _format: "double",
+          _stream: {
+            platform: "youtube",
+            status: "ended",
+            url: "https://youtu.be/abcdefghijk",
+            replay_url: "https://youtu.be/12345678901",
+          },
+        }),
+      ),
+    );
+  });
+  it("keeps the editor open and blocks saving a mismatched platform link", async () => {
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit event" }));
+    const d = within(screen.getByRole("dialog"));
+    fireEvent.change(d.getByLabelText("Video platform"), { target: { value: "facebook" } });
+    fireEvent.change(d.getByLabelText("Broadcast video link"), {
+      target: { value: "https://youtu.be/abcdefghijk" },
+    });
+    fireEvent.click(d.getByRole("button", { name: "Save tournament" }));
+    await waitFor(() =>
+      expect(mocks.error).toHaveBeenCalledWith(expect.stringContaining("valid HTTPS video link")),
+    );
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
   it("requires confirmation before locking the draw", async () => {
     mount();
@@ -366,6 +416,11 @@ describe("advanced tournament administration", () => {
     fireEvent.change(d.getByLabelText("Start date and time (your local time)"), {
       target: { value: "2099-05-10T09:00" },
     });
+    fireEvent.change(d.getByLabelText("Video platform"), { target: { value: "youtube" } });
+    fireEvent.change(d.getByLabelText("Broadcast video link"), {
+      target: { value: "https://youtu.be/abcdefghijk" },
+    });
+    fireEvent.change(d.getByLabelText("Broadcast status"), { target: { value: "live" } });
     fireEvent.click(d.getByRole("button", { name: "Add prize" }));
     fireEvent.change(d.getByLabelText("Prize title"), { target: { value: "Community champion" } });
     fireEvent.change(d.getByLabelText("Prize 1 amount"), { target: { value: "1000.50" } });
@@ -374,8 +429,14 @@ describe("advanced tournament administration", () => {
     fireEvent.click(d.getByRole("button", { name: "Create tournament" }));
     await waitFor(() =>
       expect(mocks.rpc).toHaveBeenCalledWith(
-        "save_pickleball_event",
+        "save_pickleball_event_with_stream",
         expect.objectContaining({
+          _stream: {
+            platform: "youtube",
+            status: "live",
+            url: "https://youtu.be/abcdefghijk",
+            replay_url: "",
+          },
           _format: "double",
           _requires_approval: true,
           _currency: "PHP",

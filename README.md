@@ -221,3 +221,45 @@ createdb flavorfleet_inbox_test
 psql -X -v ON_ERROR_STOP=1 -d flavorfleet_inbox_test -f scripts/test-inbox-deletion.sql
 dropdb flavorfleet_inbox_test
 ```
+
+## Tournament livestreams
+
+Admins can configure **Tournament live stream** in **Create tournament** or
+**Edit event**, including during play and after completion. Choose YouTube or
+Facebook, paste a public HTTPS video link, and manually select Scheduled, Live
+or Ended. An optional same-platform replay link is used when Ended; otherwise
+viewers can open the original video. Choose No broadcast to remove coverage.
+The broadcast, event and prize settings save together with revision protection.
+
+Start streaming in the provider's smartphone app. This app does not transmit
+camera video, sign in to the provider, create broadcasts or detect their status.
+Use a YouTube watch/live/youtu.be video link or a Facebook video permalink,
+watch/video.php link or share/v link. Channel links and other hosts are rejected.
+Viewers choose Load video to load the external player, or open the provider
+through the direct-watch button. Public visibility, embedding permissions,
+account eligibility and video availability are managed by the provider; Facebook
+share links may need to be opened directly. No API credentials or stream keys
+are entered in this app. Brackets and scores remain independently managed.
+
+Before publishing this frontend, run the complete
+`drizzle/migrations/0011_tournament_livestreams.sql` after migration 0010 in the
+connected **Lovable Cloud → Database → Manage → SQL editor**. It adds optional
+broadcast settings to existing events and an admin-only atomic save RPC. It can
+be reapplied without clearing settings, prizes, match history or results. Older
+event-save callers continue to work and preserve broadcast configuration.
+
+Verify installation with:
+
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'pickleball_tournaments'
+  AND column_name = 'livestream';
+```
+
+Local regression checks (empty disposable PostgreSQL database only):
+
+```sh
+createdb flavorfleet_stream_test
+psql -X -v ON_ERROR_STOP=1 -d flavorfleet_stream_test -f scripts/test-tournament-streams.sql
+dropdb flavorfleet_stream_test
+```
