@@ -203,6 +203,7 @@ function Rider() {
               ).length
             }
           </p>
+      </div>
 
       {uid && <RiderProfilePhoto userId={uid} />}
 

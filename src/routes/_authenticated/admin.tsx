@@ -85,6 +85,8 @@ function Admin() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">Admin panel</h1>
 
+      </div>
+
       <Tabs defaultValue="orders" className="mt-6">
         <TabsList>
           <TabsTrigger value="orders">Orders</TabsTrigger>
