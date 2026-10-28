@@ -1,3 +1,4 @@
+import type { TournamentStream } from "./tournament-stream";
 export type Tournament = {
   id: string;
   title: string;
@@ -11,6 +12,7 @@ export type Tournament = {
   requires_approval: boolean;
   currency: string;
   prize_pool: number | null;
+  livestream?: TournamentStream;
   revision: number;
   created_by: string;
   created_at: string;

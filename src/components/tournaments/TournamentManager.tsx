@@ -1,3 +1,5 @@
+import { emptyStream, validateStream } from "@/lib/tournament-stream";
+import { StreamEditor, StreamPlayer } from "./TournamentStream";
 import { prizeDrafts, prizePayload } from "@/lib/tournament-prizes";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +50,7 @@ function EventForm({
   const [draft, setDraft] = useState(() => prizeDrafts(prizes));
   const [currency, setCurrency] = useState(event?.currency ?? "PHP");
   const [pool, setPool] = useState(event?.prize_pool == null ? "" : String(event.prize_pool));
+  const [stream, setStream] = useState(event?.livestream ?? { ...emptyStream });
   const locked = !!event && event.status !== "registration";
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -56,7 +59,7 @@ function EventForm({
     const form = new FormData(e.currentTarget);
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("save_pickleball_event", {
+      const { data, error } = await supabase.rpc("save_pickleball_event_with_stream", {
         _title: String(form.get("title")),
         _description: String(form.get("description")),
         _venue: String(form.get("venue")),
@@ -70,6 +73,7 @@ function EventForm({
         _pool: pool === "" ? null : Number(pool),
         _prizes: prizePayload(draft),
         _revision: event?.revision ?? null,
+        _stream: validateStream(stream),
       });
       if (error) throw error;
       if (data) onSaved(data);
@@ -184,6 +188,7 @@ function EventForm({
       <p className="text-sm text-muted-foreground">
         Doubles · win by 2. Format and scoring rules lock once the draw starts.
       </p>
+      <StreamEditor value={stream} onChange={setStream} />
       <PrizeEditor
         currency={currency}
         onCurrency={setCurrency}
@@ -735,6 +740,7 @@ export function Tournaments() {
           </aside>
           {event && (
             <section className="min-w-0 space-y-6" aria-label="Tournament details">
+              <StreamPlayer key={event.id} stream={event.livestream} title={event.title} />
               <div className="rounded-2xl border bg-card p-5 md:p-6">
                 <p className="text-sm font-semibold text-primary">
                   {event.status === "registration" && !registrationOpen
