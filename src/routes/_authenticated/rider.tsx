@@ -203,20 +203,6 @@ function Rider() {
               ).length
             }
           </p>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-2"
-          onClick={() => {
-            playRiderPickupSound();
-            toast.success("Rider alert chime played!");
-          }}
-        >
-          <Volume2 className="h-4 w-4" />
-          Test Rider Chime
-        </Button>
-      </div>
 
       {uid && <RiderProfilePhoto userId={uid} />}
 

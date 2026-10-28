@@ -84,19 +84,6 @@ function Admin() {
     <main className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">Admin panel</h1>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-2"
-          onClick={() => {
-            playNewOrderSound();
-            toast.success("Sound test played!");
-          }}
-        >
-          <Volume2 className="h-4 w-4" />
-          Test Alert Chime
-        </Button>
-      </div>
 
       <Tabs defaultValue="orders" className="mt-6">
         <TabsList>
