@@ -645,3 +645,129 @@ describe("bracket corrections", () => {
     );
   });
 });
+
+describe("tournament cleanup", () => {
+  const acknowledgement =
+    "I understand that all selected tournament data and history will be permanently removed.";
+  beforeEach(() => {
+    mocks.admin = true;
+    mocks.uid = "admin";
+  });
+  it.each(["registration", "in_progress", "completed", "cancelled"] as const)(
+    "allows confirmed deletion of a %s tournament and clears cached details",
+    async (status) => {
+      mocks.events[0]!.status = status;
+      mount();
+      fireEvent.click(await screen.findByRole("button", { name: "Delete tournament" }));
+      const d = within(screen.getByRole("dialog"));
+      expect(d.getByText(/private contacts, brackets, scores/)).toBeInTheDocument();
+      const remove = d.getByRole("button", { name: "Permanently delete tournament" });
+      expect(remove).toBeDisabled();
+      fireEvent.change(d.getByLabelText("Type Weekend Doubles to confirm"), {
+        target: { value: "wrong" },
+      });
+      fireEvent.click(d.getByLabelText(acknowledgement));
+      expect(remove).toBeDisabled();
+      expect(mocks.rpc).not.toHaveBeenCalled();
+      fireEvent.change(d.getByLabelText("Type Weekend Doubles to confirm"), {
+        target: { value: "Weekend Doubles" },
+      });
+      mocks.rpc.mockImplementation(async () => {
+        mocks.events = [];
+        mocks.teams = [];
+        return { data: 1, error: null };
+      });
+      fireEvent.click(remove);
+      await waitFor(() =>
+        expect(mocks.rpc).toHaveBeenCalledWith("admin_delete_pickleball_tournaments", {
+          _events: [{ id: "event", revision: 2 }],
+          _all: false,
+          _confirmation: "Weekend Doubles",
+        }),
+      );
+      expect(await screen.findByText("The next championship starts here")).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Tournament details" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    },
+  );
+  it("selects a remaining tournament after deleting the current event", async () => {
+    mocks.events.push({ ...mocks.events[0]!, id: "second-event", title: "Second Cup" });
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Delete tournament" }));
+    const d = within(screen.getByRole("dialog"));
+    fireEvent.change(d.getByLabelText("Type Weekend Doubles to confirm"), {
+      target: { value: "Weekend Doubles" },
+    });
+    fireEvent.click(d.getByLabelText(acknowledgement));
+    mocks.rpc.mockImplementation(async () => {
+      mocks.events = mocks.events.filter((event) => event.id !== "event");
+      mocks.teams = [];
+      mocks.matches = [];
+      return { data: 1, error: null };
+    });
+    fireEvent.click(d.getByRole("button", { name: "Permanently delete tournament" }));
+    expect(await screen.findByRole("heading", { name: "Second Cup" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Weekend Doubles" })).not.toBeInTheDocument();
+  });
+  it("captures all events and requires the bulk deletion phrase", async () => {
+    mocks.events.push({
+      ...mocks.events[0]!,
+      id: "second-event",
+      title: "Second Cup",
+      revision: 8,
+    });
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Clear all tournaments" }));
+    const d = within(screen.getByRole("dialog"));
+    expect(d.getByRole("list", { name: "Tournaments to delete" })).toHaveTextContent("Second Cup");
+    fireEvent.change(d.getByLabelText("Type DELETE ALL TOURNAMENTS to confirm"), {
+      target: { value: "DELETE ALL TOURNAMENTS" },
+    });
+    const remove = d.getByRole("button", { name: "Permanently delete all tournaments" });
+    expect(remove).toBeDisabled();
+    fireEvent.click(d.getByLabelText(acknowledgement));
+    mocks.rpc.mockImplementation(async () => {
+      mocks.events = [];
+      return { data: 2, error: null };
+    });
+    fireEvent.click(remove);
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith("admin_delete_pickleball_tournaments", {
+        _events: [
+          { id: "event", revision: 2 },
+          { id: "second-event", revision: 8 },
+        ],
+        _all: true,
+        _confirmation: "DELETE ALL TOURNAMENTS",
+      }),
+    );
+    expect(await screen.findByText("The next championship starts here")).toBeInTheDocument();
+  });
+  it("keeps failed deletion visible for retry, and cancellation preserves data", async () => {
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Delete tournament" }));
+    const d = within(screen.getByRole("dialog"));
+    fireEvent.change(d.getByLabelText("Type Weekend Doubles to confirm"), {
+      target: { value: "Weekend Doubles" },
+    });
+    fireEvent.click(d.getByLabelText(acknowledgement));
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "Tournament list changed. Close this dialog, refresh and try again." },
+    });
+    fireEvent.click(d.getByRole("button", { name: "Permanently delete tournament" }));
+    expect(await d.findByRole("alert")).toHaveTextContent("Tournament list changed");
+    fireEvent.click(d.getByRole("button", { name: "Keep tournaments" }));
+    expect(screen.getByRole("region", { name: "Tournament details" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  });
+  it("hides cleanup controls from other roles", async () => {
+    mocks.admin = false;
+    mocks.uid = "customer";
+    mount();
+    await screen.findByRole("region", { name: "Tournament details" });
+    expect(screen.queryByRole("button", { name: "Delete tournament" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear all tournaments" })).not.toBeInTheDocument();
+  });
+});

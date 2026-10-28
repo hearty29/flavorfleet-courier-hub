@@ -513,6 +513,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_delete_pickleball_tournaments: { Args: { _events: Json; _all: boolean; _confirmation: string }; Returns: number }
       save_pickleball_event: { Args: { _id: string | null; _title: string; _description: string; _venue: string; _starts_at: string; _max_teams: number; _points_to_win: number; _format: string; _requires_approval: boolean; _currency: string; _pool: number | null; _prizes: Json; _revision: number | null }; Returns: string }
       save_pickleball_event_with_stream: { Args: { _id: string | null; _title: string; _description: string; _venue: string; _starts_at: string; _max_teams: number; _points_to_win: number; _format: string; _requires_approval: boolean; _currency: string; _pool: number | null; _prizes: Json; _revision: number | null; _stream: Json }; Returns: string }
       save_pickleball_prizes: { Args: { _event: string; _currency: string; _pool: number | null; _prizes: Json; _revision: number }; Returns: undefined }

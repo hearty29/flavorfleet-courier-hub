@@ -263,3 +263,35 @@ createdb flavorfleet_stream_test
 psql -X -v ON_ERROR_STOP=1 -d flavorfleet_stream_test -f scripts/test-tournament-streams.sql
 dropdb flavorfleet_stream_test
 ```
+
+## Admin tournament cleanup
+
+Admins have **Delete tournament** on every event, including active, completed and
+cancelled tournaments, and **Clear all tournaments** beside Create tournament.
+These permanently remove the selected events and their teams, private contacts,
+brackets, scores, final placements, prizes, livestream settings and audit history.
+This is an intentional exception to history preservation: cancellation and result
+correction still keep their existing records. Deletion cannot be undone in the
+app. Videos hosted on Facebook/YouTube remain on those platforms. Food orders,
+accounts, court bookings and the currency catalog are preserved.
+
+The dialog lists the events being cleared, requires the tournament's exact name
+(or `DELETE ALL TOURNAMENTS` for bulk cleanup), and requires acknowledging the
+permanent deletion. If any selected event changed, disappeared or a new event was
+created before a bulk request, deletion is rejected without removing data. Close
+the dialog, refresh, review the current list, and open cleanup again. The database
+checks admin access, typed confirmation and mandatory revisions; cleanup is atomic.
+All tournament mutations briefly wait while a confirmed cleanup completes.
+
+Apply `drizzle/migrations/0012_tournament_cleanup.sql` after migration 0011 in the
+connected **Lovable Cloud → Database → Manage → SQL editor**, before publishing
+the new cleanup frontend. Installing the migration does not delete anything and
+it can be reapplied. A successful cleanup leaves the app ready for new events.
+
+Regression checks use an empty disposable local PostgreSQL database:
+
+```sh
+createdb flavorfleet_cleanup_test
+psql -X -v ON_ERROR_STOP=1 -d flavorfleet_cleanup_test -f scripts/test-tournament-cleanup.sql
+dropdb flavorfleet_cleanup_test
+```
