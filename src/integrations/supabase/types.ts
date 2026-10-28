@@ -355,6 +355,108 @@ export type Database = {
         }
         Relationships: []
       }
+      support_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          order_id: string | null
+          owner_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          order_id?: string | null
+          owner_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          order_id?: string | null
+          owner_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_conversations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+          sender_name: string
+          sender_role: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          sender_name?: string
+          sender_role?: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          sender_name?: string
+          sender_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_reads: {
+        Row: {
+          conversation_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_reads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -399,6 +501,7 @@ export type Database = {
         }
         Returns: string
       }
+      can_access_support: { Args: { _conversation: string }; Returns: boolean }
       cancel_my_order: { Args: { _order: string }; Returns: undefined }
       get_booked_slots: {
         Args: { _court: string; _date: string }
@@ -411,6 +514,24 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      list_support_conversations: {
+        Args: never
+        Returns: {
+          display_name: string
+          id: string
+          kind: string
+          last_message: string
+          order_id: string
+          status: string
+          unread: boolean
+          updated_at: string
+        }[]
+      }
+      mark_support_read: { Args: { _conversation: string }; Returns: undefined }
+      open_support_conversation: {
+        Args: { _kind: string; _order?: string }
+        Returns: string
       }
       order_rider: {
         Args: { _order: string }
@@ -429,6 +550,10 @@ export type Database = {
           _phone: string
         }
         Returns: string
+      }
+      resolve_support_conversation: {
+        Args: { _conversation: string; _resolved: boolean }
+        Returns: undefined
       }
       review_rider_application: {
         Args: { _app: string; _approve: boolean }
