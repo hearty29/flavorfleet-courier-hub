@@ -141,7 +141,7 @@ export function ChatButton({ kind, orderId, label = 'Contact support' }: { kind:
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const start = useMutation({ mutationFn: async () => {
-    const { data, error } = await supabase.rpc('open_support_conversation', { _kind: kind, _order: orderId });
+    const { data, error } = await supabase.rpc('open_support_conversation', { _kind: kind, ...(orderId ? { _order: orderId } : {}) });
     if (error) throw error;
     return data;
   }, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['support-threads'] }); } });

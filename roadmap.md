@@ -1,4 +1,5 @@
-- [ ] Build private customer/rider support chats, order chats, admin inbox, and verify messaging.
+- [x] Build private customer/rider support chats, order chats, and admin inbox; chat and routing tests pass.
+- [ ] Verify signed-in chat sending and admin reply readback (blocked: no app account matches the requesting user; sign in to the preview).
 - [ ] Enable public profile-pictures bucket (blocked by workspace public-bucket policy; owner must allow public buckets).
 - [x] Add secured photo and ID storage and saved verification fields.
 - [x] Build rider verification page and navigation with live upload states.
