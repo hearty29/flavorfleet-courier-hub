@@ -57,6 +57,13 @@
       "when": 1793214000000,
       "tag": "0007_order_types",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793215500000,
+      "tag": "0008_pickleball_tournaments",
+      "breakpoints": true
     }
   ]
 }

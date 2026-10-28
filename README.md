@@ -55,3 +55,68 @@ The checks apply all migrations and cover legacy compatibility, database pricing
 customer/admin/rider visibility, counter collection, invalid-order rollback and
 preservation of delivery photo requirements. Frontend regression checks run with
 `npm test`.
+
+## Pickleball tournaments
+
+The **Tournaments** header button beside Pickleball opens `/tournaments`. Anyone
+can follow teams, brackets and results. Signed-in players can register one doubles
+team per event and withdraw before the draw starts. Team and player names are
+public; contact phone numbers are visible only to the team captain and admins.
+
+Admins manage events on the same page:
+
+1. Choose **Create tournament**, enter the venue, future start time, capacity
+   (2–32 teams) and points target (11, 15 or 21).
+2. Edit the event or remove entries while registration is open. Registration
+   closes at the start time, or when the admin starts the draw.
+3. Choose **Generate draw & start** to randomly seed a single elimination bracket.
+   Byes advance automatically. The draw and teams are then locked.
+4. Assign courts/times and enter match scores. One game decides each match; the
+   winner must reach the selected target and lead by at least two points.
+   Saved results are final. Winners advance automatically, and the final result
+   displays the champions.
+
+Match schedules are informational and do not reserve courts in the separate
+court booking system. Dates are entered and displayed in the viewer's local time.
+Admins can cancel unfinished events; existing teams and results remain visible.
+The page subscribes to live changes and refreshes every 15 seconds.
+
+### Database installation
+
+Apply the complete `drizzle/migrations/0008_pickleball_tournaments.sql` file **once**
+after migrations `0000` through `0007`, before publishing the tournament frontend.
+For this Lovable Cloud app, open the same project database where you successfully
+ran the order-type migration: **More → Database → Manage → SQL editor**. Run the
+file there. A separate Supabase project with only `cafe_orders` is not this app's
+database.
+
+The migration creates tournament tables, access policies, registration and admin
+functions, and realtime subscriptions in one transaction. The browser cannot
+write tournament tables directly; SQL functions enforce roles, capacity, draw
+locking and scoring. Existing food orders and court bookings are preserved.
+
+Check the installation with this read-only query:
+
+```sql
+SELECT to_regclass('public.pickleball_tournaments'),
+       to_regclass('public.pickleball_teams'),
+       to_regclass('public.pickleball_matches');
+```
+
+All three results should contain table names. Then publish the updated frontend,
+sign in as an admin and create your first event.
+
+### Local tournament checks
+
+Use an **empty, disposable local PostgreSQL database** as a local superuser. The
+script installs the earlier migrations and synthetic auth/storage fixtures, then
+checks every field size from 2 to 32 teams, bracket completion, score validation,
+registration limits, permissions, private contacts and cancellation:
+
+```sh
+createdb flavorfleet_tournament_test
+psql -X -v ON_ERROR_STOP=1 -d flavorfleet_tournament_test -f scripts/test-tournaments.sql
+dropdb flavorfleet_tournament_test
+```
+
+Run `npm test`, `npx tsc --noEmit` and `npm run build` for frontend checks.

@@ -1,3 +1,5 @@
+import type { Tournament, TournamentTeam, TournamentMatch } from "@/lib/tournaments";
+
 export type Json =
   | string
   | number
@@ -14,6 +16,31 @@ export type Database = {
   }
   public: {
     Tables: {
+      pickleball_tournaments: {
+        Row: Tournament
+        Insert: Partial<Tournament>
+        Update: Partial<Tournament>
+        Relationships: []
+      }
+      pickleball_teams: {
+        Row: TournamentTeam
+        Insert: Partial<TournamentTeam>
+        Update: Partial<TournamentTeam>
+        Relationships: []
+      }
+      pickleball_team_contacts: {
+        Row: { team_id: string; phone: string }
+        Insert: { team_id: string; phone: string }
+        Update: { team_id?: string; phone?: string }
+        Relationships: []
+      }
+      pickleball_matches: {
+        Row: TournamentMatch
+        Insert: Partial<TournamentMatch>
+        Update: Partial<TournamentMatch>
+        Relationships: []
+      }
+
       cafe_orders: {
         Row: {
           created_at: string | null
@@ -483,6 +510,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_pickleball_tournament: {
+        Args: { _title: string; _description: string; _venue: string; _starts_at: string; _max_teams: number; _points_to_win: number; _id?: string }
+        Returns: string
+      }
+      register_pickleball_team: {
+        Args: { _tournament: string; _name: string; _player_one: string; _player_two: string; _phone: string }
+        Returns: string
+      }
+      withdraw_pickleball_team: { Args: { _team: string }; Returns: undefined }
+      start_pickleball_tournament: { Args: { _tournament: string }; Returns: undefined }
+      cancel_pickleball_tournament: { Args: { _tournament: string }; Returns: undefined }
+      score_pickleball_match: { Args: { _match: string; _score_a: number; _score_b: number }; Returns: undefined }
+      schedule_pickleball_match: { Args: { _match: string; _court: string; _scheduled_at: string | null }; Returns: undefined }
+
       admin_set_role: {
         Args: {
           _grant: boolean
