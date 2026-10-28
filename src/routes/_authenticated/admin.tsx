@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DeliveryProofImage } from "@/components/DeliveryProof";
+import { SupportInbox } from '@/components/SupportChat';
 
 type MenuItem = Database["public"]["Tables"]["menu_items"]["Row"];
 type OrderStatus = Database["public"]["Enums"]["order_status"];
@@ -102,10 +103,11 @@ function Admin() {
       </div>
 
       <Tabs defaultValue="orders" className="mt-6">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="menu">Menu</TabsTrigger>
           <TabsTrigger value="riders">Rider applications</TabsTrigger>
+          <TabsTrigger value="support">Support</TabsTrigger>
         </TabsList>
         <TabsContent value="orders">
           <OrdersTab />
@@ -116,6 +118,7 @@ function Admin() {
         <TabsContent value="riders">
           <RidersTab />
         </TabsContent>
+        <TabsContent value="support"><SupportInbox admin /></TabsContent>
       </Tabs>
     </main>
   );

@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { ChatButton, SupportInbox } from '@/components/SupportChat';
 
 export const Route = createFileRoute("/_authenticated/rider")({
   head: () => ({
@@ -116,6 +117,7 @@ function OrderCard({
             {o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
           </p>
           <p className="mt-1 text-sm font-semibold">Collect cash: {peso(o.total)}</p>
+          {o.rider_id && <div className="mt-3"><ChatButton kind="order_rider" orderId={o.id} label="Chat with customer" /></div>}
         </div>
 
         <div className="mt-4 flex gap-2">{children}</div>
@@ -224,6 +226,7 @@ function Rider() {
       </div>
 
       {uid && <RiderProfilePhoto userId={uid} />}
+      <div className="mt-4"><ChatButton kind="rider_admin" label="Contact admin" /></div>
 
       <section className="mt-6">
         <h2 className="text-xl font-bold">My active deliveries</h2>
@@ -280,6 +283,7 @@ function Rider() {
         {!done.length && <p className="mt-1 text-sm text-muted-foreground">No completed deliveries yet.</p>}
         <div className="mt-3 grid gap-4 md:grid-cols-2">{done.map((o) => <OrderCard key={o.id} o={o}><DeliveryProofImage path={o.proof_of_delivery_path} /></OrderCard>)}</div>
       </section>
+      <section className="mt-8"><h2 className="mb-3 text-xl font-bold">My conversations</h2><SupportInbox /></section>
     </main>
   );
 }

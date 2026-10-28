@@ -93,7 +93,6 @@ function ChatThread({ id }: { id: string }) {
 
 export function SupportInbox({ admin = false }: { admin?: boolean }) {
   const threads = useThreads();
-  useChatRealtime();
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
@@ -141,7 +140,6 @@ export function SupportInbox({ admin = false }: { admin?: boolean }) {
 export function ChatButton({ kind, orderId, label = 'Contact support' }: { kind: ChatKind; orderId?: string; label?: string }) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
-  useChatRealtime(open ? undefined : undefined);
   const start = useMutation({ mutationFn: async () => {
     const { data, error } = await supabase.rpc('open_support_conversation', { _kind: kind, _order: orderId });
     if (error) throw error;
