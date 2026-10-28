@@ -1,3 +1,4 @@
+import { TournamentCleanup } from "./TournamentCleanup";
 import { emptyStream, validateStream } from "@/lib/tournament-stream";
 import { StreamEditor, StreamPlayer } from "./TournamentStream";
 import { prizeDrafts, prizePayload } from "@/lib/tournament-prizes";
@@ -492,6 +493,7 @@ export function Tournaments() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<{ event: Tournament | null } | null>(null);
+  const [cleanup, setCleanup] = useState<{ events: Tournament[]; all: boolean } | null>(null);
   const [registering, setRegistering] = useState(false);
   const [adminPanel, setAdminPanel] = useState<"prizes" | "move" | null>(null);
   const [teamForm, setTeamForm] = useState<{ team: TournamentTeam | null } | null>(null);
@@ -672,10 +674,20 @@ export function Tournaments() {
             </p>
           </div>
           {!loading && isAdmin && (
-            <Button onClick={() => setForm({ event: null })}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create tournament
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setForm({ event: null })}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create tournament
+              </Button>
+              {events.isSuccess && events.data.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setCleanup({ events: [...events.data], all: true })}
+                >
+                  Clear all tournaments
+                </Button>
+              )}
+            </div>
           )}
         </div>
         <div className="mt-6 flex flex-wrap gap-3 text-xs">
@@ -809,6 +821,12 @@ export function Tournaments() {
                         onClick={() => setAdminPanel("prizes")}
                       >
                         Manage prizes
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => setCleanup({ events: [event], all: false })}
+                      >
+                        Delete tournament
                       </Button>
                       {event.status === "registration" && (
                         <Button variant="outline" onClick={() => setTeamForm({ team: null })}>
@@ -1046,6 +1064,36 @@ export function Tournaments() {
             />
           )}
         </AdminDialog>
+      )}
+      {cleanup && isAdmin && (
+        <TournamentCleanup
+          events={cleanup.events}
+          all={cleanup.all}
+          onClose={() => setCleanup(null)}
+          onError={refresh}
+          onDeleted={async (ids) => {
+            await qc.cancelQueries({ queryKey: ["tournaments"] });
+            qc.setQueryData<Tournament[]>(
+              ["tournaments", "events"],
+              (current) => current?.filter((item) => !ids.includes(item.id)) ?? [],
+            );
+            qc.removeQueries({
+              queryKey: ["tournaments"],
+              predicate: (query) => query.queryKey[1] !== "events",
+            });
+            setCleanup(null);
+            setSelectedId(null);
+            setForm(null);
+            setRegistering(false);
+            setAdminPanel(null);
+            setTeamForm(null);
+            setAction(null);
+            toast.success(
+              ids.length === 1 ? "Tournament deleted" : `${ids.length} tournaments deleted`,
+            );
+            refresh();
+          }}
+        />
       )}
       <Dialog
         open={!!form}
