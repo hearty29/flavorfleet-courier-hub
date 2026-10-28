@@ -140,6 +140,7 @@ function Rider() {
       const { data, error } = await supabase
         .from("orders")
         .select("*, order_items(*)")
+        .eq("order_type", "delivery")
         .in("status", ["ready", "picked_up", "delivered"])
         .order("created_at", { ascending: false })
         .limit(100);
@@ -157,12 +158,13 @@ function Rider() {
         { event: "*", schema: "public", table: "orders" },
         (payload) => {
           const nextOrder = payload.new as {
+            order_type?: string;
             status?: string;
             rider_id?: string | null;
             id?: string;
           };
           // Alert rider if an order just became ready and hasn't been taken yet
-          if (nextOrder?.status === "ready" && !nextOrder?.rider_id) {
+          if (nextOrder?.order_type === "delivery" && nextOrder.status === "ready" && !nextOrder.rider_id) {
             playRiderPickupSound();
             toast.success("🛵 New order ready for pickup!", {
               description: "Check Available Orders below to accept.",

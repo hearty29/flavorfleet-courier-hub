@@ -15,7 +15,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DeliveryProofImage } from "@/components/DeliveryProof";
 import { SupportInbox } from "@/components/SupportChat";
 
@@ -143,8 +149,14 @@ function OrdersTab() {
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("active");
   const [typeFilter, setTypeFilter] = useState<OrderTypeFilter>("all");
 
-  const { data: orders = [] } = useQuery({
+  const {
+    data: orders = [],
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["admin-orders"],
+    refetchInterval: 15000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
@@ -178,27 +190,24 @@ function OrdersTab() {
   useEffect(() => {
     const ch = supabase
       .channel(`admin-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            playNewOrderSound();
-            const newOrder = payload.new as {
-              id?: string;
-              customer_name?: string;
-              order_type?: string;
-            };
-            const label = newOrder.order_type === "counter" ? "🏪 Counter Order" : "🛵 Delivery Order";
-            toast.info(`🔔 ${label} received!`, {
-              description: `Order #${newOrder.id ? newOrder.id.slice(0, 8) : "New"} · ${
-                newOrder.customer_name || "Customer"
-              }`,
-            });
-          }
-          qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          playNewOrderSound();
+          const newOrder = payload.new as {
+            id?: string;
+            customer_name?: string;
+            order_type?: string;
+          };
+          const label =
+            newOrder.order_type === "counter" ? "🏪 Counter Order" : "🛵 Delivery Order";
+          toast.info(`🔔 ${label} received!`, {
+            description: `Order #${newOrder.id ? newOrder.id.slice(0, 8) : "New"} · ${
+              newOrder.customer_name || "Customer"
+            }`,
+          });
         }
-      )
+        qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -218,10 +227,7 @@ function OrdersTab() {
   };
 
   const markCounterClaimed = async (id: string) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: "delivered", updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const { error } = await supabase.rpc("admin_claim_counter_order", { _order: id });
     if (error) toast.error(error.message);
     else {
       toast.success("Order marked as claimed!");
@@ -230,14 +236,14 @@ function OrdersTab() {
   };
 
   const today = orders.filter(
-    (o) => new Date(o.created_at).toDateString() === new Date().toDateString()
+    (o) => new Date(o.created_at).toDateString() === new Date().toDateString(),
   );
   const revenue = today
     .filter((o) => o.status === "delivered")
     .reduce((s, o) => s + Number(o.total), 0);
 
   // Filter orders by Type and Status
-  const getOrderType = (o: any) => o.order_type || "delivery";
+  const getOrderType = (o: Database["public"]["Tables"]["orders"]["Row"]) => o.order_type;
 
   const deliveryOrdersCount = orders.filter((o) => getOrderType(o) === "delivery").length;
   const counterOrdersCount = orders.filter((o) => getOrderType(o) === "counter").length;
@@ -262,7 +268,7 @@ function OrdersTab() {
         <Stat
           label="Active"
           value={String(
-            orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length
+            orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length,
           )}
         />
         <Stat label="Delivered revenue today" value={peso(revenue)} />
@@ -327,13 +333,22 @@ function OrdersTab() {
 
       {/* Order List */}
       <div className="space-y-3">
-        {!shown.length && (
+        {isPending && <p role="status">Loading orders...</p>}
+        {isError && (
+          <div role="alert" className="rounded-2xl border p-4">
+            Could not load orders. Check the database connection and migrations.
+            <Button variant="outline" className="ml-2" onClick={() => void refetch()}>
+              Retry
+            </Button>
+          </div>
+        )}
+        {!isPending && !isError && !shown.length && (
           <div className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground">
             No {typeFilter !== "all" ? typeFilter : ""} orders found under {statusFilter} filter.
           </div>
         )}
-        {shown.map((o: any) => {
-          const isCounter = (o.order_type || "delivery") === "counter";
+        {shown.map((o) => {
+          const isCounter = o.order_type === "counter";
 
           return (
             <article
@@ -348,7 +363,9 @@ function OrdersTab() {
                 {/* Header Row: ID, Badges */}
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-bold">#{o.id.slice(0, 8)}</p>
-                  <StatusBadge status={o.status} />
+                  <StatusBadge
+                    status={isCounter && o.status === "delivered" ? "claimed" : o.status}
+                  />
 
                   {/* Order Type Badge */}
                   {isCounter ? (
@@ -366,12 +383,14 @@ function OrdersTab() {
                   {o.customer_name} · {o.phone}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {isCounter ? `Location: ${o.address || "Counter Pickup"}` : `Address: ${o.address}`}
+                  {isCounter
+                    ? `Location: ${o.address || "Counter Pickup"}`
+                    : `Address: ${o.address}`}
                 </p>
 
                 {/* Items */}
                 <p className="mt-1.5 text-sm">
-                  {o.order_items?.map((i: any) => `${i.quantity}× ${i.name}`).join(", ")}
+                  {o.order_items?.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
                 </p>
                 {o.notes && <p className="text-sm text-muted-foreground">Note: {o.notes}</p>}
 
@@ -383,7 +402,9 @@ function OrdersTab() {
                   {new Date(o.created_at).toLocaleString()} ·{" "}
                   {isCounter ? (
                     <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                      No rider dispatch (Claimed at counter)
+                      {o.status === "delivered"
+                        ? "Claimed at counter"
+                        : "Customer collects at counter"}
                     </span>
                   ) : o.rider_id ? (
                     <span className="font-medium text-foreground">
@@ -402,7 +423,7 @@ function OrdersTab() {
                 <p className="text-lg font-bold">{peso(o.total)}</p>
 
                 {/* Fast Claim button for Counter Orders */}
-                {isCounter && o.status !== "delivered" && o.status !== "cancelled" && (
+                {isCounter && o.status === "ready" && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -415,19 +436,28 @@ function OrdersTab() {
                 )}
 
                 {/* Status Dropdown */}
-                <Select
-                  value={o.status}
-                  onValueChange={(v) => setStatus(o.id, v as OrderStatus)}
-                >
+                <Select value={o.status} onValueChange={(v) => setStatus(o.id, v as OrderStatus)}>
                   <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {statuses.map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">
-                        {s.replace("_", " ")}
-                      </SelectItem>
-                    ))}
+                    {statuses
+                      .filter((s) => !isCounter || s !== "picked_up")
+                      .map((s) => (
+                        <SelectItem
+                          key={s}
+                          value={s}
+                          disabled={
+                            isCounter &&
+                            s === "delivered" &&
+                            o.status !== "ready" &&
+                            o.status !== "delivered"
+                          }
+                          className="capitalize"
+                        >
+                          {isCounter && s === "delivered" ? "Claimed" : s.replace("_", " ")}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -517,20 +547,10 @@ function MenuTab() {
               onCheckedChange={() => toggle(m)}
               aria-label="Available"
             />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setEditing(m)}
-              aria-label="Edit"
-            >
+            <Button size="icon" variant="ghost" onClick={() => setEditing(m)} aria-label="Edit">
               <Pencil />
             </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => remove(m.id)}
-              aria-label="Delete"
-            >
+            <Button size="icon" variant="ghost" onClick={() => remove(m.id)} aria-label="Delete">
               <Trash2 />
             </Button>
           </div>
@@ -548,11 +568,7 @@ function MenuTab() {
             </div>
             <div>
               <Label htmlFor="md">Description</Label>
-              <Textarea
-                id="md"
-                name="description"
-                defaultValue={editing?.description ?? ""}
-              />
+              <Textarea id="md" name="description" defaultValue={editing?.description ?? ""} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
