@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { ChatButton, SupportInbox } from '@/components/SupportChat';
 
 export const Route = createFileRoute("/_authenticated/rider")({
   head: () => ({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/rider")({
   component: Rider,
 });
 
+// Upbeat 3-tone chime when an order is ready for pickup
 function playRiderPickupSound() {
   try {
     const AudioCtx =
@@ -81,6 +83,7 @@ function OrderCard({
             <span>{o.address}</span>
           </p>
 
+          {/* Quick Contact Buttons */}
           {cleanPhone && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button
@@ -114,12 +117,14 @@ function OrderCard({
             {o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
           </p>
           <p className="mt-1 text-sm font-semibold">Collect cash: {peso(o.total)}</p>
+          {o.rider_id && <div className="mt-3"><ChatButton kind="order_rider" orderId={o.id} label="Chat with customer" /></div>}
         </div>
 
         <div className="mt-4 flex gap-2">{children}</div>
       </article>
     );
   }
+
 
 function Rider() {
   const { session, roles, loading } = useAuth();
@@ -156,6 +161,7 @@ function Rider() {
             rider_id?: string | null;
             id?: string;
           };
+          // Alert rider if an order just became ready and hasn't been taken yet
           if (nextOrder?.status === "ready" && !nextOrder?.rider_id) {
             playRiderPickupSound();
             toast.success("🛵 New order ready for pickup!", {
@@ -190,6 +196,7 @@ function Rider() {
   const mine = orders.filter((o) => o.rider_id === uid && o.status !== "delivered");
   const done = orders.filter((o) => o.rider_id === uid && o.status === "delivered");
 
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -203,9 +210,23 @@ function Rider() {
               ).length
             }
           </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            playRiderPickupSound();
+            toast.success("Rider alert chime played!");
+          }}
+        >
+          <Volume2 className="h-4 w-4" />
+          Test Rider Chime
+        </Button>
       </div>
 
       {uid && <RiderProfilePhoto userId={uid} />}
+      <div className="mt-4"><ChatButton kind="rider_admin" label="Contact admin" /></div>
 
       <section className="mt-6">
         <h2 className="text-xl font-bold">My active deliveries</h2>
@@ -262,6 +283,7 @@ function Rider() {
         {!done.length && <p className="mt-1 text-sm text-muted-foreground">No completed deliveries yet.</p>}
         <div className="mt-3 grid gap-4 md:grid-cols-2">{done.map((o) => <OrderCard key={o.id} o={o}><DeliveryProofImage path={o.proof_of_delivery_path} /></OrderCard>)}</div>
       </section>
+      <section className="mt-8"><h2 className="mb-3 text-xl font-bold">My conversations</h2><SupportInbox /></section>
     </main>
   );
 }
