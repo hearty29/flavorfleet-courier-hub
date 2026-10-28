@@ -338,13 +338,12 @@ function MatchCard({
       ? (teams.get(id)?.name ?? "Team unavailable")
       : match.state === "bye"
         ? "Bye"
-        : "Awaiting winner";
+        : match.state === "not_needed"
+          ? "Not required"
+          : "Awaiting team";
   return (
-    <article
-      className="rounded-lg border-l-4 border-l-current bg-card p-4 text-foreground shadow-sm"
-      aria-label={"Match " + matchLabel(match)}
-    >
-      <div className="mb-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+    <article className="arena-match" aria-label={"Match " + matchLabel(match)}>
+      <div className="arena-match-meta">
         <span>Match {matchLabel(match)}</span>
         <span className="capitalize">
           {match.state === "bye"
@@ -362,16 +361,16 @@ function MatchCard({
       ].map((side, index) => (
         <div
           key={index}
-          className={`flex items-center justify-between gap-2 rounded-lg p-2 ${side.id && match.winner_id === side.id ? "bg-green-100 font-bold text-green-900" : ""}`}
+          className={"arena-team" + (side.id && match.winner_id === side.id ? " is-winner" : "")}
         >
-          <span className="break-words">{name(side.id)}</span>
-          <span className="shrink-0 tabular-nums">
+          <span className="arena-team-name">{name(side.id)}</span>
+          <span className="arena-team-score">
             {side.score ?? (side.id && match.winner_id === side.id ? "✓" : "—")}
           </span>
         </div>
       ))}
       {(match.court || match.scheduled_at) && (
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="arena-schedule">
           {match.court}
           {match.court && match.scheduled_at ? " · " : ""}
           {match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : ""}
@@ -974,6 +973,9 @@ export function Tournaments() {
                       </div>
                     )}
                     <BracketBoard
+                      title={event.title}
+                      status={event.status}
+                      champion={champion ?? undefined}
                       matches={matches.data ?? []}
                       renderMatch={(match) => (
                         <MatchCard
