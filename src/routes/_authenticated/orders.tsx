@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { loadAssignedRider } from "@/lib/order-rider";
 import { signedProfilePhotoUrl } from "@/lib/verification";
 import { DeliveryProofImage } from "@/components/DeliveryProof";
-import { ChatButton, SupportInbox } from '@/components/SupportChat';
+import { ChatButton, SupportInbox } from "@/components/SupportChat";
 
 export const Route = createFileRoute("/_authenticated/orders")({
   head: () => ({
@@ -35,19 +35,23 @@ const TRACKING_STEPS = [
   { id: "delivered", label: "Delivered", desc: "Enjoy your meal!", icon: Check },
 ];
 
-function OrderTracker({ status }: { status: string }) {
+function OrderTracker({ status, isCounter }: { status: string; isCounter: boolean }) {
+  const steps = isCounter
+    ? TRACKING_STEPS.filter((step) => step.id !== "picked_up").map((step) =>
+        step.id === "delivered" ? { ...step, label: "Claimed" } : step,
+      )
+    : TRACKING_STEPS;
   if (status === "cancelled") return null;
 
-  const currentIdx = TRACKING_STEPS.findIndex((s) => s.id === status);
-  const progressPercent =
-    currentIdx <= 0 ? 0 : (currentIdx / (TRACKING_STEPS.length - 1)) * 100;
+  const currentIdx = steps.findIndex((s) => s.id === status);
+  const progressPercent = currentIdx <= 0 ? 0 : (currentIdx / (steps.length - 1)) * 100;
 
   const isOrderDelivered = status === "delivered";
 
   return (
     <div className="relative my-6 px-1 sm:px-3">
       <div className="flex items-center justify-between">
-        {TRACKING_STEPS.map((step, idx) => {
+        {steps.map((step, idx) => {
           const Icon = step.icon;
           const isDone = idx < currentIdx || (isOrderDelivered && idx === currentIdx);
           const isCurrent = !isOrderDelivered && idx === currentIdx;
@@ -72,7 +76,9 @@ function OrderTracker({ status }: { status: string }) {
               >
                 {step.label}
               </span>
-              <span className="hidden text-[10px] text-muted-foreground md:inline">{step.desc}</span>
+              <span className="hidden text-[10px] text-muted-foreground md:inline">
+                {step.desc}
+              </span>
             </div>
           );
         })}
@@ -88,11 +94,18 @@ function OrderTracker({ status }: { status: string }) {
   );
 }
 
-function AssignedRider({ order, customerId }: {
+function AssignedRider({
+  order,
+  customerId,
+}: {
   order: { id: string; rider_id: string | null };
   customerId: string | undefined;
 }) {
-  const { data: rider, isPending, isError } = useQuery({
+  const {
+    data: rider,
+    isPending,
+    isError,
+  } = useQuery({
     queryKey: ["order-rider", customerId, order.id, order.rider_id],
     enabled: Boolean(customerId && order.rider_id),
     refetchInterval: 30000,
@@ -108,11 +121,23 @@ function AssignedRider({ order, customerId }: {
 
   return (
     <div className="mt-4 flex items-center gap-3 border-y border-border py-3">
-      {rider?.photo ? <img src={rider.photo} alt="Your delivery rider" className="size-12 shrink-0 rounded-full border object-cover" /> : <Bike className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />}
+      {rider?.photo ? (
+        <img
+          src={rider.photo}
+          alt="Your delivery rider"
+          className="size-12 shrink-0 rounded-full border object-cover"
+        />
+      ) : (
+        <Bike className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      )}
       <div className="min-w-0" aria-live="polite">
         <p className="text-xs text-muted-foreground">Your delivery rider</p>
         <p className="break-words text-sm font-semibold">
-          {isPending ? "Loading rider…" : isError ? "Rider details unavailable" : rider?.name || "Rider assigned"}
+          {isPending
+            ? "Loading rider…"
+            : isError
+              ? "Rider details unavailable"
+              : rider?.name || "Rider assigned"}
         </p>
       </div>
     </div>
@@ -147,7 +172,7 @@ function Orders() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `customer_id=eq.${uid}` },
-        () => qc.invalidateQueries({ queryKey: ["my-orders"] })
+        () => qc.invalidateQueries({ queryKey: ["my-orders"] }),
       )
       .subscribe();
 
@@ -169,10 +194,14 @@ function Orders() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-3xl font-bold">My orders</h1>
-      <div className="mt-3"><ChatButton kind="customer_admin" /></div>
+      <div className="mt-3">
+        <ChatButton kind="customer_admin" />
+      </div>
       {isLoading && <p className="mt-4 text-muted-foreground">Loading orders...</p>}
       {!isLoading && !orders.length && (
-        <p className="mt-4 text-muted-foreground">No orders yet. Head to the menu to place an order!</p>
+        <p className="mt-4 text-muted-foreground">
+          No orders yet. Head to the menu to place an order!
+        </p>
       )}
 
       <div className="mt-6 space-y-4">
@@ -185,13 +214,24 @@ function Orders() {
                 </p>
                 <p className="text-xl font-bold">{peso(o.total)}</p>
               </div>
-              <StatusBadge status={o.status} />
+              <StatusBadge
+                status={
+                  o.order_type === "counter" && o.status === "delivered" ? "claimed" : o.status
+                }
+              />
             </div>
 
             {/* Live Visual Tracker */}
-            <OrderTracker status={o.status} />
+            <p className="mt-2 text-sm font-medium">
+              {o.order_type === "counter" ? "Counter / Walk-in" : "Delivery"}
+            </p>
+            <OrderTracker status={o.status} isCounter={o.order_type === "counter"} />
             <AssignedRider order={o} customerId={uid} />
-            {o.rider_id && <div className="mt-3"><ChatButton kind="order_rider" orderId={o.id} label="Chat with rider" /></div>}
+            {o.rider_id && (
+              <div className="mt-3">
+                <ChatButton kind="order_rider" orderId={o.id} label="Chat with rider" />
+              </div>
+            )}
             <DeliveryProofImage path={o.proof_of_delivery_path} />
 
             <ul className="mt-4 divide-y divide-border/40 text-sm">
@@ -203,23 +243,23 @@ function Orders() {
             </ul>
 
             <p className="mt-3 text-sm text-muted-foreground">
-              Cash on delivery · {o.address}
+              {o.order_type === "counter"
+                ? "Pay at counter · Collect at the counter"
+                : `Cash on delivery · ${o.address}`}
             </p>
 
             {o.status === "pending" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => cancel(o.id)}
-              >
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => cancel(o.id)}>
                 Cancel order
               </Button>
             )}
           </article>
         ))}
       </div>
-      <section className="mt-8"><h2 className="mb-3 text-xl font-bold">My conversations</h2><SupportInbox /></section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-xl font-bold">My conversations</h2>
+        <SupportInbox />
+      </section>
     </main>
   );
 }

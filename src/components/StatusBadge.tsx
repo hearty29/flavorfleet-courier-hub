@@ -5,6 +5,7 @@ const styles: Record<string, string> = {
   preparing: "bg-secondary text-secondary-foreground",
   ready: "bg-primary/15 text-primary",
   picked_up: "bg-primary text-primary-foreground",
+  claimed: "bg-success text-primary-foreground",
   delivered: "bg-success text-primary-foreground",
   cancelled: "bg-muted text-muted-foreground line-through",
   approved: "bg-success text-primary-foreground",
@@ -13,7 +14,12 @@ const styles: Record<string, string> = {
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", styles[status])}>
+    <span
+      className={cn(
+        "inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize",
+        styles[status],
+      )}
+    >
       {status.replace("_", " ")}
     </span>
   );

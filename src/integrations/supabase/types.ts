@@ -211,6 +211,7 @@ export type Database = {
           delivery_fee: number
           id: string
           notes: string | null
+          order_type: "delivery" | "counter"
           payment_method: string
           phone: string
           proof_of_delivery_path: string | null
@@ -230,6 +231,7 @@ export type Database = {
           delivery_fee?: number
           id?: string
           notes?: string | null
+          order_type?: "delivery" | "counter"
           payment_method?: string
           phone: string
           proof_of_delivery_path?: string | null
@@ -249,6 +251,7 @@ export type Database = {
           delivery_fee?: number
           id?: string
           notes?: string | null
+          order_type?: "delivery" | "counter"
           payment_method?: string
           phone?: string
           proof_of_delivery_path?: string | null
@@ -540,12 +543,14 @@ export type Database = {
           profile_image_url: string
         }[]
       }
+      admin_claim_counter_order: { Args: { _order: string }; Returns: undefined }
       place_order: {
         Args: {
           _address: string
           _items: Json
           _name: string
           _notes: string
+          _order_type?: "delivery" | "counter"
           _payment: string
           _phone: string
         }
