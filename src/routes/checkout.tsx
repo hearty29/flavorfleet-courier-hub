@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Minus, Plus, Banknote, CreditCard } from "lucide-react";
+import { Minus, Plus, Banknote, CreditCard, Store, Bike } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -30,6 +30,9 @@ function Checkout() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  
+  // State for order type: "delivery" or "counter"
+  const [orderType, setOrderType] = useState<"delivery" | "counter">("delivery");
 
   const { data: profile } = useQuery({
     queryKey: ["profile", session?.user.id],
@@ -45,10 +48,17 @@ function Checkout() {
     }
     const f = new FormData(e.currentTarget);
     setBusy(true);
-    const address = String(f.get("address") || "");
+    
+    // For counter orders, set a default pickup note or use input address if filled
+    const address = orderType === "counter" 
+      ? "Counter Pickup / Walk-in" 
+      : String(f.get("address") || "");
+      
     const phone = String(f.get("phone") || "");
     const name = String(f.get("name") || "");
 
+    // NOTE: Make sure your Supabase RPC function `place_order` accepts `_order_type` 
+    // OR swap this to a direct table `.insert()` if your RPC doesn't support it yet.
     const { data, error } = await supabase.rpc("place_order", {
       _items: items.map((i) => ({ id: i.id, quantity: i.quantity })),
       _address: address,
@@ -56,10 +66,11 @@ function Checkout() {
       _name: name,
       _notes: String(f.get("notes") || ""),
       _payment: "cod",
+      _order_type: orderType, // Passed into Supabase
     });
 
     if (!error && session) {
-      await supabase.from("profiles").update({ address, phone, full_name: name }).eq("id", session.user.id);
+      await supabase.from("profiles").update({ address: orderType === "delivery" ? address : profile?.address, phone, full_name: name }).eq("id", session.user.id);
     }
 
     setBusy(false);
@@ -70,10 +81,14 @@ function Checkout() {
     }
 
     clear();
-    toast.success("Order placed successfully!");
+    toast.success(orderType === "counter" ? "Counter order placed successfully!" : "Delivery order placed successfully!");
     void data;
     navigate({ to: "/orders" });
   };
+
+  // Calculate actual total based on order type (No delivery fee for counter pickup)
+  const currentDeliveryFee = orderType === "counter" ? 0 : DELIVERY_FEE;
+  const finalTotal = subtotal + currentDeliveryFee;
 
   if (!items.length) {
     return (
@@ -124,7 +139,31 @@ function Checkout() {
       </section>
 
       <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-card p-5" key={profile?.id ?? "profile-form"}>
-        <h2 className="text-xl font-bold">Delivery details</h2>
+        <h2 className="text-xl font-bold">Order Type</h2>
+        
+        {/* Order Type Toggle Selector */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={orderType === "delivery" ? "default" : "outline"}
+            className="gap-2 text-xs sm:text-sm"
+            onClick={() => setOrderType("delivery")}
+          >
+            <Bike className="h-4 w-4" />
+            Delivery
+          </Button>
+          <Button
+            type="button"
+            variant={orderType === "counter" ? "default" : "outline"}
+            className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm"
+            onClick={() => setOrderType("counter")}
+          >
+            <Store className="h-4 w-4" />
+            Counter / Walk-in
+          </Button>
+        </div>
+
+        <h2 className="text-xl font-bold pt-2">{orderType === "delivery" ? "Delivery details" : "Customer details"}</h2>
         <div>
           <Label htmlFor="n">Full Name</Label>
           <Input id="n" name="name" defaultValue={profile?.full_name ?? ""} required />
@@ -133,13 +172,18 @@ function Checkout() {
           <Label htmlFor="ph">Phone Number</Label>
           <Input id="ph" name="phone" defaultValue={profile?.phone ?? ""} required />
         </div>
+
+        {/* Only show address input if it's a delivery order */}
+        {orderType === "delivery" && (
+          <div>
+            <Label htmlFor="ad">Delivery Address</Label>
+            <Textarea id="ad" name="address" defaultValue={profile?.address ?? ""} required={orderType === "delivery"} />
+          </div>
+        )}
+
         <div>
-          <Label htmlFor="ad">Delivery Address</Label>
-          <Textarea id="ad" name="address" defaultValue={profile?.address ?? ""} required />
-        </div>
-        <div>
-          <Label htmlFor="no">Notes for rider (optional)</Label>
-          <Input id="no" name="notes" placeholder="Landmark, gate color, building name..." />
+          <Label htmlFor="no">{orderType === "delivery" ? "Notes for rider (optional)" : "Pickup notes (optional)"}</Label>
+          <Input id="no" name="notes" placeholder={orderType === "delivery" ? "Landmark, gate color..." : "Will pick up in 15 mins..."} />
         </div>
 
         <div>
@@ -147,11 +191,7 @@ function Checkout() {
           <div className="mt-2 grid gap-2">
             <div className="flex items-center gap-2 rounded-lg border-2 border-primary p-3">
               <Banknote className="text-primary" />
-              <span className="font-medium">Cash on delivery</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border p-3 text-muted-foreground">
-              <CreditCard />
-              <span>Card / online — coming soon</span>
+              <span className="font-medium">{orderType === "delivery" ? "Cash on delivery" : "Pay at counter"}</span>
             </div>
           </div>
         </div>
@@ -161,18 +201,20 @@ function Checkout() {
             <span>Subtotal</span>
             <span>{peso(subtotal)}</span>
           </div>
-          <div className="flex justify-between">
-            <span>Delivery fee</span>
-            <span>{peso(DELIVERY_FEE)}</span>
-          </div>
+          {orderType === "delivery" && (
+            <div className="flex justify-between">
+              <span>Delivery fee</span>
+              <span>{peso(DELIVERY_FEE)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-lg font-bold">
             <span>Total</span>
-            <span>{peso(subtotal + DELIVERY_FEE)}</span>
+            <span>{peso(finalTotal)}</span>
           </div>
         </div>
 
         <Button className="w-full" size="lg" disabled={busy}>
-          {busy ? "Placing order..." : "Place order"}
+          {busy ? "Placing order..." : orderType === "counter" ? "Place counter order" : "Place delivery order"}
         </Button>
       </form>
     </main>
