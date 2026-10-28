@@ -120,3 +120,34 @@ dropdb flavorfleet_tournament_test
 ```
 
 Run `npm test`, `npx tsc --noEmit` and `npm run build` for frontend checks.
+
+## Delete a conversation from your inbox
+
+Admins, riders and customers can use the trash button beside a conversation, or
+in the open chat toolbar, then confirm **Delete for me**. This hides the entry
+only for the signed-in account, including its unread badge. Other participants
+keep their conversation and all messages remain stored. A new message restores
+the conversation to the inbox; explicitly opening a chat with its contact/order
+button restores it only for that account. Resolving a thread alone does not
+restore it. Other sessions refresh their inbox within the existing 10-second poll.
+
+Apply the complete `drizzle/migrations/0009_personal_inbox_deletion.sql` file
+after earlier migrations, in the same **Lovable Cloud → Database →
+Manage → SQL editor** used for the order and tournament updates. Apply SQL before
+publishing the updated frontend. Existing conversation access, sender identity
+checks and rider assignment rules remain enforced.
+
+If the SQL editor reports `delete_support_conversation already exists`, clear
+the editor and run the complete current version of that file. It can be rerun
+after an earlier installation or failed attempt. It replaces the inbox RPC,
+policy and restore trigger without deleting conversation, message, read or
+personal inbox state. It does not remove dependent database objects; if a
+dependency blocks replacement, the transaction rolls back without data changes.
+
+Local checks use an empty disposable PostgreSQL database as a local superuser:
+
+```sh
+createdb flavorfleet_inbox_test
+psql -X -v ON_ERROR_STOP=1 -d flavorfleet_inbox_test -f scripts/test-inbox-deletion.sql
+dropdb flavorfleet_inbox_test
+```
