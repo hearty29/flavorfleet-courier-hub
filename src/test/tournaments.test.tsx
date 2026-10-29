@@ -168,6 +168,22 @@ describe("tournament visitor and registration", () => {
       "/tournaments",
     );
   });
+  it.each([null, "customer"])("keeps rider applications discoverable for %s visitors", (uid) => {
+    mocks.uid = uid;
+    mount(SiteHeader);
+    expect(screen.getByRole("link", { name: "Apply as Rider" })).toHaveAttribute(
+      "href",
+      "/apply-rider",
+    );
+    expect(screen.queryByRole("link", { name: "Rider dashboard" })).not.toBeInTheDocument();
+  });
+  it("keeps dashboard navigation for approved riders and admins", () => {
+    mocks.uid = "admin";
+    mocks.admin = true;
+    mount(SiteHeader);
+    expect(screen.queryByRole("link", { name: "Apply as Rider" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rider dashboard" })).toHaveAttribute("href", "/rider");
+  });
   it("shows public team information and asks guests to sign in", async () => {
     mount();
     expect(await screen.findByText("Alice & Alex")).toBeInTheDocument();

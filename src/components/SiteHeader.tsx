@@ -87,6 +87,13 @@ export function SiteHeader() {
               </Link>
             </Button>
           )}
+          {!roles.includes("admin") && !roles.includes("rider") && (
+            <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+              <Link to="/apply-rider" aria-label="Apply as Rider">
+                <Bike /> <span className="font-medium">Apply as Rider</span>
+              </Link>
+            </Button>
+          )}
           {roles.includes("rider") && (
             <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
               <Link to="/rider" aria-label="Rider dashboard">
