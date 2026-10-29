@@ -118,8 +118,8 @@ export function RiderIdUpload({ userId }: { userId: string }) {
           Valid ID <span className="text-xs text-destructive">Required</span>
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Accepted: School ID, National ID, or Passport. Upload a clear image or PDF, up to 10MB.
-          Your ID is private and visible only to you and admins.
+          Accepted: School ID, National ID, Passport, or Government ID. Upload a clear image or PDF,
+          up to 10MB. Your ID is private and visible only to you and admins.
         </p>
       </div>
       <p role="status" className="text-sm">

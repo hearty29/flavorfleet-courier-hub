@@ -102,12 +102,12 @@ it("requires ID despite an existing profile photo, including a forced submit", a
   fireEvent.submit(submit.closest("form")!);
   await waitFor(() =>
     expect(mocks.error).toHaveBeenCalledWith(
-      "Upload a School ID, National ID or Passport before applying.",
+      "Upload a School ID, National ID, Passport or Government ID before applying.",
     ),
   );
   expect(mocks.insert).not.toHaveBeenCalled();
 });
-it.each(["School ID", "National ID", "Passport"])(
+it.each(["School ID", "National ID", "Passport", "Government ID"])(
   "uploads %s privately as pending before application submission",
   async (type) => {
     mount();

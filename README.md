@@ -312,7 +312,7 @@ menu links also open `/menu`. No database migration is required for this update.
 ## Required rider identification
 
 **Apply as Rider** now requires a profile picture and an uploaded **School ID,
-National ID, or Passport**. Choose the ID type and upload a clear image or PDF
+National ID, Passport, or Government ID**. Choose the ID type and upload a clear image or PDF
 (maximum 10MB). A successful upload is pending review; it does not grant a rider
 role. Rejected or missing documents cannot enable application submission.
 The existing driver's license number field remains separate from the ID upload.
@@ -323,7 +323,7 @@ application cards include **View private ID**, using a short-lived signed URL.
 Application submission and new approval both check the accepted type, document
 status, and actual owner-prefixed stored file in SQL. Legacy Driver's License
 records and existing approved rider roles are preserved; new ID uploads use only
-the three accepted types. Existing pending applicants without an accepted ID must
+the four accepted types. Existing pending applicants without an accepted ID must
 upload one before approval. Admins can still reject incomplete applications.
 
 Apply the complete `drizzle/migrations/0013_required_rider_id.sql` after 0012 in
@@ -337,3 +337,12 @@ createdb flavorfleet_rider_id_test
 psql -X -v ON_ERROR_STOP=1 -d flavorfleet_rider_id_test -f scripts/test-required-rider-id.sql
 dropdb flavorfleet_rider_id_test
 ```
+
+### Government ID option
+
+Government ID is also accepted for rider applications and rider verification.
+Apply `drizzle/migrations/0014_government_rider_id.sql` after 0013 in the connected
+Lovable Cloud SQL editor before publishing this update. It is transactional and
+can be reapplied; existing documents, roles, private storage, and admin review
+requirements are preserved. The rider ID regression command above covers all
+four accepted types and both migrations.
