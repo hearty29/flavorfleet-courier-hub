@@ -337,7 +337,7 @@ function AboutPage() {
 
         <div className="flex flex-wrap gap-3">
           <Button size="lg" asChild>
-            <Link to="/">
+            <Link to="/menu">
               <UtensilsCrossed className="mr-2 h-5 w-5" />
               See the menu
             </Link>
