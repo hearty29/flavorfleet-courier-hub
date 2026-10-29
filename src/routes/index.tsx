@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Roadside Paddles — Play. Eat. Sip. Repeat." },
+      { title: "Roadside Paddles — Play-Eat-Sip-Repeat" },
       {
         name: "description",
         content:
           "Welcome to Roadside Paddles: your neighborhood hub for comforting food, fresh coffee, pickleball courts and tournaments.",
       },
-      { property: "og:title", content: "Roadside Paddles — Play. Eat. Sip. Repeat." },
+      { property: "og:title", content: "Roadside Paddles — Play-Eat-Sip-Repeat" },
       {
         property: "og:description",
         content: "Discover food, coffee and pickleball, all in one place.",
@@ -30,7 +30,7 @@ function HomePage() {
       <section aria-label="Welcome to Roadside Paddles" className="pt-6 md:pt-10">
         <img
           src="/images/roadside-paddles-banner.png"
-          alt="Roadside Paddles — Play. Eat. Sip. Repeat. Pickleball, delicious food and fresh coffee."
+          alt="Roadside Paddles — Play-Eat-Sip-Repeat. Pickleball, delicious food and fresh coffee."
           width={1672}
           height={941}
           fetchPriority="high"
@@ -41,7 +41,7 @@ function HomePage() {
             More than just a game
           </p>
           <h1 className="mt-3 text-4xl font-extrabold tracking-tight md:text-6xl">
-            Play. Eat. Sip. Repeat.
+            Play-Eat-Sip-Repeat
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
             Welcome to Roadside Paddles, your neighborhood spot for good food, fresh coffee, and a
