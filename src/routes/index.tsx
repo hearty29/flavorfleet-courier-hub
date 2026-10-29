@@ -141,15 +141,7 @@ function HomePage() {
           Your browser does not support this video. Open the introduction on Imgur using the link
           below.
         </video>
-        <div className="flex flex-wrap items-center justify-between gap-4 p-6 md:px-10">
-          <a
-            href="https://imgur.com/a/biJR7Kw"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm underline underline-offset-4"
-          >
-            Open introduction on Imgur
-          </a>
+        <div className="flex flex-wrap items-center justify-end gap-4 p-6 md:px-10">
           <Button asChild variant="secondary">
             <Link to="/about">
               More about us <ArrowRight />
