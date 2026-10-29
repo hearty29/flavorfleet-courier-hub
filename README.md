@@ -308,3 +308,32 @@ served locally and displayed in full without cropping.
 The **Home** header link opens the introduction. **Menu** opens `/menu`, which
 retains category filtering, availability and cart actions. Empty-cart and About
 menu links also open `/menu`. No database migration is required for this update.
+
+## Required rider identification
+
+**Apply as Rider** now requires a profile picture and an uploaded **School ID,
+National ID, or Passport**. Choose the ID type and upload a clear image or PDF
+(maximum 10MB). A successful upload is pending review; it does not grant a rider
+role. Rejected or missing documents cannot enable application submission.
+The existing driver's license number field remains separate from the ID upload.
+
+The ID control is shared with Rider verification. Documents remain in the private
+`rider-ids` bucket and owner/admin-only `rider_verifications` table. Admin rider
+application cards include **View private ID**, using a short-lived signed URL.
+Application submission and new approval both check the accepted type, document
+status, and actual owner-prefixed stored file in SQL. Legacy Driver's License
+records and existing approved rider roles are preserved; new ID uploads use only
+the three accepted types. Existing pending applicants without an accepted ID must
+upload one before approval. Admins can still reject incomplete applications.
+
+Apply the complete `drizzle/migrations/0013_required_rider_id.sql` after 0012 in
+the connected **Lovable Cloud → Database → Manage → SQL editor** before publishing.
+It is transactional and can be reapplied. It does not delete existing documents.
+
+Regression check (empty disposable local PostgreSQL database only):
+
+```sh
+createdb flavorfleet_rider_id_test
+psql -X -v ON_ERROR_STOP=1 -d flavorfleet_rider_id_test -f scripts/test-required-rider-id.sql
+dropdb flavorfleet_rider_id_test
+```

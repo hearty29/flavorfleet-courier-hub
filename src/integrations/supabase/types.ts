@@ -562,6 +562,10 @@ export type Database = {
         Args: { _court: string; _date: string }
         Returns: string[]
       }
+      has_rider_application_id: {
+        Args: { _user: string }
+        Returns: boolean
+      }
       has_rider_photo: { Args: { _user: string }; Returns: boolean }
       has_role: {
         Args: {

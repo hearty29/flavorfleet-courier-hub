@@ -10,17 +10,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RiderProfilePhoto, riderPhotoQuery } from "@/components/RiderProfilePhoto";
+import { RiderIdUpload } from "@/components/RiderIdUpload";
+import { riderIdQuery } from "@/lib/verification";
 import { requireRiderPhoto } from "@/lib/delivery-photos";
 
 export const Route = createFileRoute("/_authenticated/apply-rider")({
   head: () => ({
     meta: [
       { title: "Become a Roadside Paddles Rider" },
-      { name: "description", content: "Apply to deliver food with Roadside Paddles. Flexible hours, weekly payouts." },
+      {
+        name: "description",
+        content: "Apply to deliver food with Roadside Paddles. Flexible hours, weekly payouts.",
+      },
       { property: "og:title", content: "Become a Roadside Paddles rider" },
-      { property: "og:description", content: "Apply to deliver food with Roadside Cafe. Flexible hours, weekly payouts." },
+      {
+        property: "og:description",
+        content: "Apply to deliver food with Roadside Cafe. Flexible hours, weekly payouts.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -33,11 +47,16 @@ function ApplyRider() {
   const qc = useQueryClient();
   const [vehicle, setVehicle] = useState("motorcycle");
   const [busy, setBusy] = useState(false);
-  
+
   const uid = session?.user?.id;
   const { data: photo } = useQuery(riderPhotoQuery(uid));
+  const { data: id } = useQuery(riderIdQuery(uid));
 
-  const { data: apps = [], isLoading, isError } = useQuery({
+  const {
+    data: apps = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["my-app", uid],
     enabled: Boolean(uid),
     queryFn: async () => {
@@ -72,6 +91,8 @@ function ApplyRider() {
 
     try {
       requireRiderPhoto(Boolean(photo?.hasPhoto));
+      if (!id?.hasId)
+        throw new Error("Upload a School ID, National ID or Passport before applying.");
       const { error } = await supabase.from("rider_applications").insert({
         user_id: uid,
         full_name: String(f.get("full_name") || ""),
@@ -92,9 +113,9 @@ function ApplyRider() {
 
       toast.success("Application submitted!");
       qc.invalidateQueries({ queryKey: ["my-app"] });
-    } catch (err: any) {
+    } catch (err) {
       setBusy(false);
-      toast.error(err.message || "An unexpected error occurred.");
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred.");
     }
   };
 
@@ -109,12 +130,21 @@ function ApplyRider() {
             Deliver hot meals around your neighborhood and earn on your own schedule.
           </p>
           {session && (
-            <RiderProfilePhoto userId={session.user.id} />
+            <>
+              <RiderProfilePhoto userId={session.user.id} />
+              <RiderIdUpload userId={session.user.id} />
+            </>
           )}
           <ul className="mt-6 space-y-3">
-            <li className="flex gap-3"><Clock className="text-primary" /> Choose your own hours</li>
-            <li className="flex gap-3"><Wallet className="text-primary" /> Earn per delivery</li>
-            <li className="flex gap-3"><Bike className="text-primary" /> Motorcycle or bicycle welcome</li>
+            <li className="flex gap-3">
+              <Clock className="text-primary" /> Choose your own hours
+            </li>
+            <li className="flex gap-3">
+              <Wallet className="text-primary" /> Earn per delivery
+            </li>
+            <li className="flex gap-3">
+              <Bike className="text-primary" /> Motorcycle or bicycle welcome
+            </li>
           </ul>
         </div>
 
@@ -122,12 +152,16 @@ function ApplyRider() {
           {!session ? (
             <div className="text-center">
               <p className="mb-4">Sign in first to submit your rider application.</p>
-              <Button asChild><Link to="/auth">Sign in to apply</Link></Button>
+              <Button asChild>
+                <Link to="/auth">Sign in to apply</Link>
+              </Button>
             </div>
           ) : roles.includes("rider") ? (
             <div className="text-center">
               <p className="mb-4 font-medium">You're an approved rider! 🎉</p>
-              <Button asChild><Link to="/rider">Open rider dashboard</Link></Button>
+              <Button asChild>
+                <Link to="/rider">Open rider dashboard</Link>
+              </Button>
             </div>
           ) : isLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
@@ -161,7 +195,9 @@ function ApplyRider() {
               <div>
                 <Label>Vehicle</Label>
                 <Select value={vehicle} onValueChange={setVehicle}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="motorcycle">Motorcycle</SelectItem>
                     <SelectItem value="bicycle">Bicycle</SelectItem>
@@ -183,7 +219,7 @@ function ApplyRider() {
                 <Label htmlFor="ex">Experience (optional)</Label>
                 <Textarea id="ex" name="experience" />
               </div>
-              <Button className="w-full" disabled={busy || !photo?.hasPhoto}>
+              <Button className="w-full" disabled={busy || !photo?.hasPhoto || !id?.hasId}>
                 {busy ? "Submitting..." : "Submit application"}
               </Button>
             </form>

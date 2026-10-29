@@ -1,3 +1,4 @@
+import { RiderIdReview } from "@/components/RiderIdUpload";
 import { Tournaments } from "@/components/tournaments/TournamentManager";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -659,6 +660,7 @@ function RidersTab() {
               {a.plate_number ? ` · ${a.plate_number}` : ""} · License {a.license_number}
             </p>
             {a.experience && <p className="mt-1 text-sm">{a.experience}</p>}
+            <RiderIdReview userId={a.user_id} />
             <p className="text-xs text-muted-foreground">
               {new Date(a.created_at).toLocaleString()}
             </p>
