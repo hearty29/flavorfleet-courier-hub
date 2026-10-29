@@ -12,6 +12,8 @@ INSERT INTO rider_applications(id,user_id,full_name,phone,address,vehicle_type,l
  VALUES ('13000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000003','Legacy Rider','09','Test','bicycle','Legacy');
 \ir ../drizzle/migrations/0013_required_rider_id.sql
 \ir ../drizzle/migrations/0013_required_rider_id.sql
+\ir ../drizzle/migrations/0014_government_rider_id.sql
+\ir ../drizzle/migrations/0014_government_rider_id.sql
 SELECT test_assert(id_type='Driver''s License' AND id_verification_status='approved','legacy ID preserved') FROM rider_verifications WHERE user_id='00000000-0000-0000-0000-000000000003';
 SELECT test_assert(has_role('00000000-0000-0000-0000-000000000003','rider'),'existing rider role preserved');
 SET ROLE authenticated;
@@ -24,7 +26,8 @@ RESET ROLE;
 INSERT INTO storage.objects(bucket_id,name) VALUES
  ('rider-ids','00000000-0000-0000-0000-000000000002/school.jpg'),
  ('rider-ids','00000000-0000-0000-0000-000000000002/national.pdf'),
- ('rider-ids','00000000-0000-0000-0000-000000000002/passport.png');
+ ('rider-ids','00000000-0000-0000-0000-000000000002/passport.png'),
+ ('rider-ids','00000000-0000-0000-0000-000000000002/government.pdf');
 SET ROLE authenticated;
 SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000002';
 SELECT test_reject($q$INSERT INTO rider_verifications(user_id,id_type,id_document_path,id_verification_status) VALUES(auth.uid(),'School ID',auth.uid()||'/school.jpg','approved')$q$,'row-level security');
@@ -35,6 +38,8 @@ UPDATE rider_verifications SET id_type='National ID',id_document_path=auth.uid()
 SELECT test_assert(has_rider_application_id(auth.uid()),'National ID eligible');
 UPDATE rider_verifications SET id_type='Passport',id_document_path=auth.uid()||'/passport.png' WHERE user_id=auth.uid();
 SELECT test_assert(has_rider_application_id(auth.uid()),'Passport eligible');
+UPDATE rider_verifications SET id_type='Government ID',id_document_path=auth.uid()||'/government.pdf' WHERE user_id=auth.uid();
+SELECT test_assert(has_rider_application_id(auth.uid()),'Government ID eligible');
 SELECT test_reject($q$UPDATE rider_verifications SET id_document_path='00000000-0000-0000-0000-000000000003/license.pdf' WHERE user_id=auth.uid()$q$,'Upload your valid ID');
 SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000004';
 SELECT test_assert(count(*)=0,'unrelated customer cannot read IDs') FROM rider_verifications;
@@ -51,13 +56,13 @@ SELECT test_assert(NOT has_role('00000000-0000-0000-0000-000000000002','rider'),
 SELECT test_assert(status='pending','failed approval preserves application') FROM rider_applications WHERE id='13000000-0000-4000-8000-000000000002';
 RESET ROLE;
 UPDATE rider_verifications SET id_verification_status='pending' WHERE user_id='00000000-0000-0000-0000-000000000002';
-DELETE FROM storage.objects WHERE name='00000000-0000-0000-0000-000000000002/passport.png';
+DELETE FROM storage.objects WHERE name='00000000-0000-0000-0000-000000000002/government.pdf';
 SET ROLE authenticated;
 SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000001';
 SELECT test_reject($q$SELECT review_rider_application('13000000-0000-4000-8000-000000000002',true)$q$,'Upload a School ID');
 SELECT review_rider_application('13000000-0000-4000-8000-000000000001',false);
 RESET ROLE;
-INSERT INTO storage.objects(bucket_id,name) VALUES ('rider-ids','00000000-0000-0000-0000-000000000002/passport.png');
+INSERT INTO storage.objects(bucket_id,name) VALUES ('rider-ids','00000000-0000-0000-0000-000000000002/government.pdf');
 SET ROLE authenticated;
 SET request.jwt.claim.sub='00000000-0000-0000-0000-000000000001';
 SELECT review_rider_application('13000000-0000-4000-8000-000000000002',true);

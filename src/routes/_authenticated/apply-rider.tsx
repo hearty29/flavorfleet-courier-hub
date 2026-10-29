@@ -92,7 +92,9 @@ function ApplyRider() {
     try {
       requireRiderPhoto(Boolean(photo?.hasPhoto));
       if (!id?.hasId)
-        throw new Error("Upload a School ID, National ID or Passport before applying.");
+        throw new Error(
+          "Upload a School ID, National ID, Passport or Government ID before applying.",
+        );
       const { error } = await supabase.from("rider_applications").insert({
         user_id: uid,
         full_name: String(f.get("full_name") || ""),

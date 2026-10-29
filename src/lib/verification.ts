@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-export const ID_TYPES = ["School ID", "National ID", "Passport"] as const;
+export const ID_TYPES = ["School ID", "National ID", "Passport", "Government ID"] as const;
 const imageExtensions: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",

@@ -17,8 +17,8 @@ describe("Verification upload rules", () => {
     expect(validateUpload({ type: "image/png", size: 123 }, "photo")).toBeNull();
     expect(validateUpload({ type: "application/pdf", size: 123 }, "photo")).not.toBeNull();
   });
-  it("offers the three requested ID types", () => {
-    expect(ID_TYPES).toEqual(["School ID", "National ID", "Passport"]);
+  it("offers the four accepted ID types", () => {
+    expect(ID_TYPES).toEqual(["School ID", "National ID", "Passport", "Government ID"]);
   });
   it("saves a submitted ID path with pending status", () => {
     expect(verificationSubmission("user", "user/document.pdf", "Passport")).toMatchObject({
