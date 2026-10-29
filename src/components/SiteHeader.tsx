@@ -42,73 +42,59 @@ export function SiteHeader() {
 
         <nav
           aria-label="Main navigation"
-          className="flex w-full flex-wrap items-center justify-center gap-1 sm:gap-2"
+          className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-2 sm:gap-x-3"
         >
-          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
-            <Link to="/" aria-label="Home">
-              <House className="h-4 w-4" />
-              <span className="font-medium">Home</span>
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
-            <Link to="/menu" aria-label="Food and coffee menu">
-              <UtensilsCrossed className="h-4 w-4" />
-              <span className="font-medium">Menu</span>
-            </Link>
-          </Button>
-
-          {/* About Us Tab */}
-          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
-            <Link to="/about" aria-label="About us">
-              <Info className="h-4 w-4" />
-              <span className="font-medium">About</span>
-            </Link>
-          </Button>
-
+          {roles.includes("admin") && (
+            <Button asChild variant="ghost" size="sm" className="px-3">
+              <Link to="/admin" aria-label="Admin dashboard">
+                <Shield /> <span className="font-medium">Admin</span>
+              </Link>
+            </Button>
+          )}
+          {roles.includes("rider") && (
+            <Button asChild variant="ghost" size="sm" className="px-3">
+              <Link to="/rider" aria-label="Rider dashboard">
+                <Bike /> <span className="font-medium">Rider</span>
+              </Link>
+            </Button>
+          )}
+          {!roles.includes("admin") && !roles.includes("rider") && (
+            <Button asChild variant="ghost" size="sm" className="px-3">
+              <Link to="/apply-rider" aria-label="Apply as Rider">
+                <Bike /> <span className="font-medium">Apply as Rider</span>
+              </Link>
+            </Button>
+          )}
           {/* Pickleball Tab */}
-          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+          <Button asChild variant="ghost" size="sm" className="px-3">
             <Link to="/pickleball" aria-label="Pickleball courts">
               <Trophy className="h-4 w-4" />
               <span className="font-medium">Pickleball</span>
             </Link>
           </Button>
 
-          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+          <Button asChild variant="ghost" size="sm" className="px-3">
             <Link to="/tournaments" aria-label="Pickleball tournaments">
               <Medal className="h-4 w-4" />
-              <span className="font-medium">Tournaments</span>
+              <span className="font-medium">Tournament</span>
             </Link>
           </Button>
 
-          {roles.includes("admin") && (
-            <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
-              <Link to="/admin" aria-label="Admin dashboard">
-                <Shield /> <span className="font-medium">Admin</span>
-              </Link>
-            </Button>
-          )}
-          {!roles.includes("admin") && !roles.includes("rider") && (
-            <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
-              <Link to="/apply-rider" aria-label="Apply as Rider">
-                <Bike /> <span className="font-medium">Apply as Rider</span>
-              </Link>
-            </Button>
-          )}
-          {roles.includes("rider") && (
-            <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
-              <Link to="/rider" aria-label="Rider dashboard">
-                <Bike /> <span className="font-medium">Rider</span>
-              </Link>
-            </Button>
-          )}
+          <Button asChild variant="ghost" size="sm" className="px-3">
+            <Link to="/menu" aria-label="Food and coffee menu">
+              <UtensilsCrossed className="h-4 w-4" />
+              <span className="font-medium">Menu</span>
+            </Link>
+          </Button>
+
           {session && (
-            <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+            <Button asChild variant="ghost" size="sm" className="px-3">
               <Link to="/orders" aria-label="My orders">
                 <Receipt /> <span className="font-medium">Orders</span>
               </Link>
             </Button>
           )}
-          <Button asChild variant="outline" size="sm" className="relative px-2 sm:px-3">
+          <Button asChild variant="outline" size="sm" className="relative px-3">
             <Link to="/checkout" aria-label="Shopping cart">
               <ShoppingBag />
               <span>Cart</span>
@@ -119,11 +105,25 @@ export function SiteHeader() {
               )}
             </Link>
           </Button>
+          <Button asChild variant="ghost" size="sm" className="px-3">
+            <Link to="/" aria-label="Home">
+              <House className="h-4 w-4" />
+              <span className="font-medium">Home</span>
+            </Link>
+          </Button>
+          {/* About Us Tab */}
+          <Button asChild variant="ghost" size="sm" className="px-3">
+            <Link to="/about" aria-label="About us">
+              <Info className="h-4 w-4" />
+              <span className="font-medium">About</span>
+            </Link>
+          </Button>
+
           {session ? (
             <Button
               variant="ghost"
               size="sm"
-              className="px-2 sm:px-3"
+              className="px-3"
               onClick={signOut}
               aria-label="Sign out"
             >
