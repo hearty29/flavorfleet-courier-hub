@@ -1,6 +1,97 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Coffee, Trophy, UtensilsCrossed, ArrowRight, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+
+const BANNER_SLIDES = [
+  {
+    src: "/images/roadside-paddles-banner.png",
+    alt: "Roadside Paddles — Play-Eat-Sip-Repeat. Pickleball, delicious food and fresh coffee.",
+  },
+  {
+    src: "/images/roadside-paddles-join-us.png",
+    alt: "Roadside Paddles — pickleball courts, delicious rice meals and pasta, and premium coffee. Join us today!",
+  },
+  {
+    src: "/images/roadside-paddles-app-showcase.jpg",
+    alt: "Roadside Paddles app preview: live tournament bracket, food and coffee ordering, and pickleball court booking.",
+  },
+];
+
+const BANNER_INTERVAL_MS = 4500;
+
+function BannerCarousel() {
+  const [api, setApi] = useState<CarouselApi>();
+  const [selected, setSelected] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (!api) return;
+    const onSelect = () => setSelected(api.selectedScrollSnap());
+    onSelect();
+    api.on("select", onSelect);
+    api.on("reInit", onSelect);
+    return () => {
+      api.off("select", onSelect);
+      api.off("reInit", onSelect);
+    };
+  }, [api]);
+
+  useEffect(() => {
+    if (!api || paused) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = window.setInterval(() => api.scrollNext(), BANNER_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [api, paused]);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <Carousel setApi={setApi} opts={{ loop: true }} aria-label="Roadside Paddles highlights">
+        <CarouselContent className="ml-0">
+          {BANNER_SLIDES.map((slide, index) => (
+            <CarouselItem key={slide.src} className="pl-0">
+              <img
+                src={slide.src}
+                alt={slide.alt}
+                width={1672}
+                height={941}
+                fetchPriority={index === 0 ? "high" : "auto"}
+                loading={index === 0 ? "eager" : "lazy"}
+                className="h-auto w-full rounded-2xl shadow-warm md:rounded-[2rem]"
+              />
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
+      <div className="absolute inset-x-0 bottom-3 flex justify-center gap-2 md:bottom-5">
+        {BANNER_SLIDES.map((slide, index) => (
+          <button
+            key={slide.src}
+            type="button"
+            aria-label={`Show banner ${index + 1} of ${BANNER_SLIDES.length}`}
+            aria-current={index === selected}
+            onClick={() => api?.scrollTo(index)}
+            className={`h-2 rounded-full transition-all ${
+              index === selected ? "w-6 bg-white" : "w-2 bg-white/60 hover:bg-white/80"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,14 +119,7 @@ function HomePage() {
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20">
       <section aria-label="Welcome to Roadside Paddles" className="pt-6 md:pt-10">
-        <img
-          src="/images/roadside-paddles-banner.png"
-          alt="Roadside Paddles — Play-Eat-Sip-Repeat. Pickleball, delicious food and fresh coffee."
-          width={1672}
-          height={941}
-          fetchPriority="high"
-          className="h-auto w-full rounded-2xl shadow-warm md:rounded-[2rem]"
-        />
+        <BannerCarousel />
         <div className="mx-auto max-w-3xl py-10 text-center md:py-14">
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">
             More than just a game
