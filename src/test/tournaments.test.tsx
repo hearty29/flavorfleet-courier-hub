@@ -176,6 +176,21 @@ describe("tournament visitor and registration", () => {
       "/apply-rider",
     );
     expect(screen.queryByRole("link", { name: "Rider dashboard" })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("navigation", { name: "Main navigation" }))
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "/apply-rider",
+      "/pickleball",
+      "/tournaments",
+      "/menu",
+      ...(uid ? ["/orders"] : []),
+      "/checkout",
+      "/",
+      "/about",
+      ...(!uid ? ["/auth"] : []),
+    ]);
   });
   it("keeps dashboard navigation for approved riders and admins", () => {
     mocks.uid = "admin";
@@ -183,6 +198,21 @@ describe("tournament visitor and registration", () => {
     mount(SiteHeader);
     expect(screen.queryByRole("link", { name: "Apply as Rider" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Rider dashboard" })).toHaveAttribute("href", "/rider");
+    expect(
+      within(screen.getByRole("navigation", { name: "Main navigation" }))
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "/admin",
+      "/rider",
+      "/pickleball",
+      "/tournaments",
+      "/menu",
+      "/orders",
+      "/checkout",
+      "/",
+      "/about",
+    ]);
   });
   it("shows public team information and asks guests to sign in", async () => {
     mount();
