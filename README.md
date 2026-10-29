@@ -295,3 +295,16 @@ createdb flavorfleet_cleanup_test
 psql -X -v ON_ERROR_STOP=1 -d flavorfleet_cleanup_test -f scripts/test-tournament-cleanup.sql
 dropdb flavorfleet_cleanup_test
 ```
+
+## Introduction homepage
+
+The default `/` page introduces Roadside Paddles with the supplied promotional
+banner, food/coffee/pickleball sections, and the introduction video from
+`https://imgur.com/a/biJR7Kw`. The video uses the album's MP4 with native controls,
+inline playback and no autoplay; an Imgur link remains available as a fallback.
+Playback depends on Imgur keeping the video publicly available. The banner is
+served locally and displayed in full without cropping.
+
+The **Home** header link opens the introduction. **Menu** opens `/menu`, which
+retains category filtering, availability and cart actions. Empty-cart and About
+menu links also open `/menu`. No database migration is required for this update.

@@ -1,166 +1,160 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Plus, Bike } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useCart, peso } from "@/lib/cart";
+import { Coffee, Trophy, UtensilsCrossed, ArrowRight, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Roadside Paddles — Filipino food delivered hot" },
-      { name: "description", content: "Order adobo, sisig, pancit and more. Cash on delivery, fast riders." },
-      { property: "og:title", content: "Roadside Paddles — Filipino food delivered hot" },
-      { property: "og:description", content: "Order adobo, sisig, pancit and more. Cash on delivery, fast riders." },
+      { title: "Roadside Paddles — Play. Eat. Sip. Repeat." },
+      {
+        name: "description",
+        content:
+          "Welcome to Roadside Paddles: your neighborhood hub for comforting food, fresh coffee, pickleball courts and tournaments.",
+      },
+      { property: "og:title", content: "Roadside Paddles — Play. Eat. Sip. Repeat." },
+      {
+        property: "og:description",
+        content: "Discover food, coffee and pickleball, all in one place.",
+      },
+      { property: "og:image", content: "/images/roadside-paddles-banner.png" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Index,
+  component: HomePage,
 });
 
-function Index() {
-  const { add } = useCart();
-  const [cat, setCat] = useState("All");
-
-  // Fetch all menu items so sold-out items still appear with a badge
-  const { data: menu = [], isLoading } = useQuery({
-    queryKey: ["menu"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("menu_items")
-        .select("*")
-        .order("category");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const cats = ["All", ...Array.from(new Set(menu.map((m) => m.category)))];
-  const shown = cat === "All" ? menu : menu.filter((m) => m.category === cat);
-
+function HomePage() {
   return (
     <main className="mx-auto max-w-6xl px-4 pb-20">
-      <section className="grid items-center gap-8 py-10 md:grid-cols-2 md:py-16">
-        <div>
-          <span className="inline-block rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">
-            Delivered in 30 mins
-          </span>
-          <h1 className="mt-4 text-5xl font-extrabold leading-[0.95] md:text-7xl">
-            Food x Coffee,<br />
-            <span className="text-primary">hatid sa'yo!</span>
-          </h1>
-          <p className="mt-4 max-w-md text-lg text-muted-foreground">
-            Your daily neighborhood pause. Savor rich espressos, comforting eats, and warm conversations in a place that feels like home.
+      <section aria-label="Welcome to Roadside Paddles" className="pt-6 md:pt-10">
+        <img
+          src="/images/roadside-paddles-banner.png"
+          alt="Roadside Paddles — Play. Eat. Sip. Repeat. Pickleball, delicious food and fresh coffee."
+          width={1672}
+          height={941}
+          fetchPriority="high"
+          className="h-auto w-full rounded-2xl shadow-warm md:rounded-[2rem]"
+        />
+        <div className="mx-auto max-w-3xl py-10 text-center md:py-14">
+          <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+            More than just a game
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button size="lg" asChild>
-              <a href="#menu">Order now</a>
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight md:text-6xl">
+            Play. Eat. Sip. Repeat.
+          </h1>
+          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
+            Welcome to Roadside Paddles, your neighborhood spot for good food, fresh coffee, and a
+            great game of pickleball. Gather your friends, enjoy a meal, or meet on the court —
+            there’s a place for you here.
+          </p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <Button asChild size="lg">
+              <Link to="/menu">
+                Explore the menu <ArrowRight />
+              </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link to="/apply-rider">
-                <Bike className="mr-2 h-5 w-5" /> Apply as Rider
+            <Button asChild size="lg" variant="outline">
+              <Link to="/pickleball">
+                Find your court <Trophy />
               </Link>
             </Button>
           </div>
         </div>
-        <div className="relative">
-          <img
-            src="/images/sisig.jpg"
-            alt="Sizzling sisig"
-            width={816}
-            height={816}
-            className="aspect-square w-full rounded-[2rem] object-cover shadow-warm"
-          />
+      </section>
+
+      <section aria-labelledby="discover-heading">
+        <h2 id="discover-heading" className="text-center text-3xl font-bold">
+          Your one-stop sports and food hub
+        </h2>
+        <div className="mt-7 grid gap-5 md:grid-cols-3">
+          <article className="flex flex-col rounded-2xl border bg-card p-6">
+            <UtensilsCrossed className="h-8 w-8 text-primary" aria-hidden="true" />
+            <h3 className="mt-4 text-2xl font-bold">Comforting eats</h3>
+            <p className="mt-3 flex-1 leading-relaxed text-muted-foreground">
+              From Filipino favorites to a satisfying meal after a match, find something to enjoy.
+              Browse the menu and choose delivery or counter pickup at checkout.
+            </p>
+            <Link
+              to="/menu"
+              className="mt-5 inline-flex items-center gap-2 font-semibold text-primary"
+            >
+              Order food <ArrowRight className="h-4 w-4" />
+            </Link>
+          </article>
+          <article className="flex flex-col rounded-2xl border bg-card p-6">
+            <Coffee className="h-8 w-8 text-primary" aria-hidden="true" />
+            <h3 className="mt-4 text-2xl font-bold">Coffee & connection</h3>
+            <p className="mt-3 flex-1 leading-relaxed text-muted-foreground">
+              Take a break with a fresh cup and good company. Whether you’re catching up with
+              friends or winding down after a game, make time for your neighborhood pause.
+            </p>
+            <Link
+              to="/menu"
+              className="mt-5 inline-flex items-center gap-2 font-semibold text-primary"
+            >
+              Browse food & drinks <ArrowRight className="h-4 w-4" />
+            </Link>
+          </article>
+          <article className="flex flex-col rounded-2xl border bg-card p-6">
+            <Trophy className="h-8 w-8 text-primary" aria-hidden="true" />
+            <h3 className="mt-4 text-2xl font-bold">Meet on the court</h3>
+            <p className="mt-3 flex-1 leading-relaxed text-muted-foreground">
+              Bring your partner and enjoy pickleball at Roadside Paddles. Check court availability,
+              book your next session, or follow our tournaments, teams, and live results.
+            </p>
+            <Link
+              to="/tournaments"
+              className="mt-5 inline-flex items-center gap-2 font-semibold text-primary"
+            >
+              Explore tournaments <ArrowRight className="h-4 w-4" />
+            </Link>
+          </article>
         </div>
       </section>
 
-      <section id="menu" className="scroll-mt-20">
-        <h2 className="text-3xl font-bold">Menu</h2>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-          {cats.map((c) => (
-            <Button
-              key={c}
-              size="sm"
-              variant={cat === c ? "default" : "secondary"}
-              className="rounded-full"
-              onClick={() => setCat(c)}
-            >
-              {c}
-            </Button>
-          ))}
+      <section
+        aria-labelledby="intro-heading"
+        className="mt-12 overflow-hidden rounded-[2rem] bg-foreground text-background md:mt-16"
+      >
+        <div className="p-6 md:p-10">
+          <p className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-widest">
+            <Play className="h-4 w-4" aria-hidden="true" /> Get to know us
+          </p>
+          <h2 id="intro-heading" className="mt-3 text-3xl font-bold md:text-4xl">
+            A little taste of Roadside Paddles
+          </h2>
+          <p className="mt-4 max-w-2xl leading-relaxed opacity-80">
+            Take a look around and discover a place to play, dine, and relax. Watch our
+            introduction, then plan your next visit.
+          </p>
         </div>
-
-        {isLoading && <p className="mt-6 text-muted-foreground">Loading menu…</p>}
-
-        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((m) => {
-            const isSoldOut = m.available === false;
-
-            return (
-              <article
-                key={m.id}
-                className={`overflow-hidden rounded-2xl border bg-card transition-all ${
-                  isSoldOut ? "opacity-75" : ""
-                }`}
-              >
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
-                  {m.image_url ? (
-                    <img
-                      src={m.image_url}
-                      alt={m.name}
-                      loading="lazy"
-                      width={816}
-                      height={816}
-                      className={`h-full w-full object-cover transition-transform duration-300 ${
-                        isSoldOut ? "grayscale" : "hover:scale-105"
-                      }`}
-                    />
-                  ) : (
-                    <div className="grid h-full place-items-center font-display text-2xl text-muted-foreground">
-                      {m.name}
-                    </div>
-                  )}
-
-                  {/* Sold Out Overlay Tag */}
-                  {isSoldOut && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-                      <span className="rounded-full bg-destructive px-3 py-1 text-xs font-bold uppercase tracking-wider text-destructive-foreground shadow-md">
-                        Sold Out
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-start gap-3 p-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold">{m.name}</h3>
-                    <p className="text-sm text-muted-foreground">{m.description}</p>
-                    <p className="mt-2 font-bold text-primary">{peso(m.price)}</p>
-                  </div>
-
-                  <Button
-                    size="icon"
-                    disabled={isSoldOut}
-                    aria-label={`Add ${m.name}`}
-                    onClick={() => {
-                      add({
-                        id: m.id,
-                        name: m.name,
-                        price: Number(m.price),
-                        image_url: m.image_url,
-                      });
-                      toast.success(`${m.name} added to cart`);
-                    }}
-                  >
-                    <Plus />
-                  </Button>
-                </div>
-              </article>
-            );
-          })}
+        <video
+          controls
+          playsInline
+          preload="none"
+          poster="https://i.imgur.com/e1306d9.jpg"
+          aria-label="Introduction to Roadside Paddles"
+          className="aspect-video w-full bg-black object-contain"
+        >
+          <source src="https://i.imgur.com/e1306d9.mp4" type="video/mp4" />
+          Your browser does not support this video. Open the introduction on Imgur using the link
+          below.
+        </video>
+        <div className="flex flex-wrap items-center justify-between gap-4 p-6 md:px-10">
+          <a
+            href="https://imgur.com/a/biJR7Kw"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm underline underline-offset-4"
+          >
+            Open introduction on Imgur
+          </a>
+          <Button asChild variant="secondary">
+            <Link to="/about">
+              More about us <ArrowRight />
+            </Link>
+          </Button>
         </div>
       </section>
     </main>

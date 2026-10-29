@@ -1,6 +1,17 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ShoppingBag, LogOut, Shield, Bike, Receipt, Trophy, Info, Medal } from "lucide-react";
+import {
+  ShoppingBag,
+  LogOut,
+  Shield,
+  Bike,
+  Receipt,
+  Trophy,
+  Info,
+  Medal,
+  House,
+  UtensilsCrossed,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +44,19 @@ export function SiteHeader() {
           aria-label="Main navigation"
           className="flex w-full flex-wrap items-center justify-center gap-1 sm:gap-2"
         >
+          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+            <Link to="/" aria-label="Home">
+              <House className="h-4 w-4" />
+              <span className="font-medium">Home</span>
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+            <Link to="/menu" aria-label="Food and coffee menu">
+              <UtensilsCrossed className="h-4 w-4" />
+              <span className="font-medium">Menu</span>
+            </Link>
+          </Button>
+
           {/* About Us Tab */}
           <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
             <Link to="/about" aria-label="About us">

@@ -115,7 +115,7 @@ function Checkout() {
         <h1 className="text-3xl font-bold">Your cart is empty</h1>
         <p className="mt-2 text-muted-foreground">Add some dishes from the menu to get started.</p>
         <Button asChild className="mt-6">
-          <Link to="/">Browse menu</Link>
+          <Link to="/menu">Browse menu</Link>
         </Button>
       </main>
     );

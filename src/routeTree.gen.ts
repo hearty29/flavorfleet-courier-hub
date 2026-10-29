@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as MenuRouteImport } from './routes/menu'
 import { Route as PickleballRouteImport } from './routes/pickleball'
 import { Route as TournamentsRouteImport } from './routes/tournaments'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -44,6 +45,11 @@ const AuthRoute = AuthRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MenuRoute = MenuRouteImport.update({
+  id: '/menu',
+  path: '/menu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PickleballRoute = PickleballRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/menu': typeof MenuRoute
   '/pickleball': typeof PickleballRoute
   '/tournaments': typeof TournamentsRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/menu': typeof MenuRoute
   '/pickleball': typeof PickleballRoute
   '/tournaments': typeof TournamentsRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/menu': typeof MenuRoute
   '/pickleball': typeof PickleballRoute
   '/tournaments': typeof TournamentsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/checkout'
+    | '/menu'
     | '/pickleball'
     | '/tournaments'
     | '/admin'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/checkout'
+    | '/menu'
     | '/pickleball'
     | '/tournaments'
     | '/admin'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/checkout'
+    | '/menu'
     | '/pickleball'
     | '/tournaments'
     | '/_authenticated/admin'
@@ -173,6 +185,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   CheckoutRoute: typeof CheckoutRoute
+  MenuRoute: typeof MenuRoute
   PickleballRoute: typeof PickleballRoute
   TournamentsRoute: typeof TournamentsRoute
 }
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/menu': {
+      id: '/menu'
+      path: '/menu'
+      fullPath: '/menu'
+      preLoaderRoute: typeof MenuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pickleball': {
@@ -291,6 +311,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   CheckoutRoute: CheckoutRoute,
+  MenuRoute: MenuRoute,
   PickleballRoute: PickleballRoute,
   TournamentsRoute: TournamentsRoute,
 }
