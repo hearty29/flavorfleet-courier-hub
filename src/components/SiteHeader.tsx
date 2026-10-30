@@ -9,6 +9,7 @@ import {
   Trophy,
   Info,
   Medal,
+  ListOrdered,
   House,
   UtensilsCrossed,
 } from "lucide-react";
@@ -77,6 +78,13 @@ export function SiteHeader() {
             <Link to="/tournaments" aria-label="Pickleball tournaments">
               <Medal className="h-4 w-4" />
               <span className="font-medium">Tournament</span>
+            </Link>
+          </Button>
+
+          <Button asChild variant="ghost" size="sm" className="px-3">
+            <Link to="/leaderboard" aria-label="Leaderboard and open play queue">
+              <ListOrdered className="h-4 w-4" />
+              <span className="font-medium">Leaderboard</span>
             </Link>
           </Button>
 

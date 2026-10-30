@@ -1,4 +1,5 @@
 import type { Tournament, TournamentTeam, TournamentMatch, TournamentPrize, TournamentResult, TournamentAudit } from "@/lib/tournaments";
+import type { OpenPlaySession, OpenPlayPlayer, OpenPlayMatch } from "@/lib/open-play";
 
 export type Json =
   | string
@@ -16,6 +17,9 @@ export type Database = {
   }
   public: {
     Tables: {
+      open_play_sessions: { Row: OpenPlaySession; Insert: Partial<OpenPlaySession>; Update: Partial<OpenPlaySession>; Relationships: [] }
+      open_play_players: { Row: OpenPlayPlayer; Insert: Partial<OpenPlayPlayer>; Update: Partial<OpenPlayPlayer>; Relationships: [] }
+      open_play_matches: { Row: OpenPlayMatch; Insert: Partial<OpenPlayMatch>; Update: Partial<OpenPlayMatch>; Relationships: [] }
       pickleball_audit: { Row: TournamentAudit; Insert: Partial<TournamentAudit>; Update: Partial<TournamentAudit>; Relationships: [] }
       pickleball_results: { Row: TournamentResult; Insert: Partial<TournamentResult>; Update: Partial<TournamentResult>; Relationships: [] }
       pickleball_prizes: { Row: TournamentPrize; Insert: Partial<TournamentPrize>; Update: Partial<TournamentPrize>; Relationships: [] }
@@ -513,6 +517,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      open_play_create_session: { Args: { _title: string; _venue: string; _played_on: string }; Returns: string }
+      open_play_set_session_status: { Args: { _session: string; _status: string }; Returns: undefined }
+      open_play_add_player: { Args: { _session: string; _name: string }; Returns: string }
+      open_play_join_queue: { Args: { _session: string; _name: string }; Returns: string }
+      open_play_leave_queue: { Args: { _player: string }; Returns: undefined }
+      open_play_remove_player: { Args: { _player: string }; Returns: undefined }
+      open_play_make_match: { Args: { _session: string; _court: string; _size?: number }; Returns: string }
+      open_play_record_score: { Args: { _match: string; _score_a: number; _score_b: number }; Returns: undefined }
+      open_play_edit_score: { Args: { _match: string; _score_a: number; _score_b: number }; Returns: undefined }
+      open_play_cancel_match: { Args: { _match: string }; Returns: undefined }
       admin_delete_pickleball_tournaments: { Args: { _events: Json; _all: boolean; _confirmation: string }; Returns: number }
       save_pickleball_event: { Args: { _id: string | null; _title: string; _description: string; _venue: string; _starts_at: string; _max_teams: number; _points_to_win: number; _format: string; _requires_approval: boolean; _currency: string; _pool: number | null; _prizes: Json; _revision: number | null }; Returns: string }
       save_pickleball_event_with_stream: { Args: { _id: string | null; _title: string; _description: string; _venue: string; _starts_at: string; _max_teams: number; _points_to_win: number; _format: string; _requires_approval: boolean; _currency: string; _pool: number | null; _prizes: Json; _revision: number | null; _stream: Json }; Returns: string }
