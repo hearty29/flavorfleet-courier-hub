@@ -117,8 +117,24 @@ function RootComponent() {
 
           <SiteHeader />
           <Outlet />
-          <footer className="border-t px-4 py-6 text-center text-sm text-muted-foreground">
-            © Roadside Paddles 2026
+          <footer className="flex flex-col items-center gap-3 border-t px-4 py-6 text-center text-sm text-muted-foreground">
+            <a
+              href="https://www.facebook.com/share/19pZk1nnGU/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 font-medium text-foreground transition-colors hover:text-[#1877F2]"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-6 w-6 shrink-0"
+                fill="#1877F2"
+              >
+                <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.026 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.971h-1.513c-1.491 0-1.956.931-1.956 1.887v2.263h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
+              </svg>
+              Facebook
+            </a>
+            <span>© Roadside Paddles 2026</span>
           </footer>
           <FloatingSupport />
           <Toaster richColors position="top-center" />
