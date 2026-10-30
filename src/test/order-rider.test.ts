@@ -4,10 +4,12 @@ import { loadAssignedRider } from "../lib/order-rider";
 describe("customer rider assignment", () => {
   it("returns the accepting rider's name for the customer's order", async () => {
     const fetchRider = vi.fn().mockResolvedValue({
-      data: [{ full_name: "Jessie Cabrera" }], error: null,
+      data: [{ full_name: "Jessie Cabrera" }],
+      error: null,
     });
-    expect(await loadAssignedRider({ id: "order-1", rider_id: "rider-1" }, fetchRider))
-      .toBe("Jessie Cabrera");
+    expect(await loadAssignedRider({ id: "order-1", rider_id: "rider-1" }, fetchRider)).toBe(
+      "Jessie Cabrera",
+    );
     expect(fetchRider).toHaveBeenCalledWith("order-1");
   });
 
@@ -18,8 +20,11 @@ describe("customer rider assignment", () => {
   });
 
   it("propagates access errors instead of exposing an identity", async () => {
-    const fetchRider = vi.fn().mockResolvedValue({ data: null, error: { message: "not authorized" } });
-    await expect(loadAssignedRider({ id: "order-1", rider_id: "rider-1" }, fetchRider))
-      .rejects.toThrow("not authorized");
+    const fetchRider = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: { message: "not authorized" } });
+    await expect(
+      loadAssignedRider({ id: "order-1", rider_id: "rider-1" }, fetchRider),
+    ).rejects.toThrow("not authorized");
   });
 });

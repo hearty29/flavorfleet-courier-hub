@@ -251,9 +251,7 @@ export function Leaderboard() {
     <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 md:pt-12">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-primary">
-            Open play
-          </p>
+          <p className="text-sm font-semibold uppercase tracking-widest text-primary">Open play</p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight md:text-5xl">
             Roadside Paddles Leaderboard
           </h1>
@@ -660,7 +658,9 @@ export function Leaderboard() {
                         <p className="text-lg font-extrabold tabular-nums">
                           {m.score_a} – {m.score_b}
                         </p>
-                        <p className={`sm:text-right ${aWon ? "text-muted-foreground" : "font-bold"}`}>
+                        <p
+                          className={`sm:text-right ${aWon ? "text-muted-foreground" : "font-bold"}`}
+                        >
                           {teamName(m.team_b)}
                         </p>
                       </div>
@@ -710,7 +710,12 @@ export function Leaderboard() {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="session-venue">Venue</Label>
-              <Input id="session-venue" name="venue" maxLength={200} placeholder="Roadside Paddles" />
+              <Input
+                id="session-venue"
+                name="venue"
+                maxLength={200}
+                placeholder="Roadside Paddles"
+              />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="session-date">Date</Label>

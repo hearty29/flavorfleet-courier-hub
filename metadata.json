@@ -1,0 +1,6 @@
+{
+  "name": "FlavorFleet Courier Hub",
+  "description": "Courier dispatch, food delivery, and order logistics hub for FlavorFleet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

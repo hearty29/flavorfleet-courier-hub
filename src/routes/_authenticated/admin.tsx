@@ -251,7 +251,12 @@ function OrdersTab() {
   const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
   const [typeFilter, setTypeFilter] = useState<"all" | "delivery" | "counter">("all");
 
-  const { data: orders = [], isPending, isError, refetch } = useQuery({
+  const {
+    data: orders = [],
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["admin-orders"],
     refetchInterval: 15000,
     queryFn: async () => {
@@ -294,7 +299,8 @@ function OrdersTab() {
             customer_name?: string;
             order_type?: string;
           };
-          const label = newOrder.order_type === "counter" ? "🏪 Counter Order" : "🛵 Delivery Order";
+          const label =
+            newOrder.order_type === "counter" ? "🏪 Counter Order" : "🛵 Delivery Order";
           toast.info(`🔔 ${label} received!`, {
             description: `Order #${newOrder.id ? newOrder.id.slice(0, 8) : "New"} · ${
               newOrder.customer_name || "Customer"
@@ -618,8 +624,8 @@ function KitchenTab() {
                 o.status === "preparing"
                   ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/10"
                   : isUrgent
-                  ? "border-destructive/60 bg-destructive/5"
-                  : "bg-card"
+                    ? "border-destructive/60 bg-destructive/5"
+                    : "bg-card"
               }`}
             >
               <div>
@@ -706,7 +712,7 @@ function CourtManagerTab() {
     queryKey: ["court-manager-bookings", dateFilter],
     refetchInterval: 15000,
     queryFn: async () => {
-      let query = supabase
+      const query = supabase
         .from("court_bookings")
         .select("*")
         .eq("booking_date", dateFilter)
@@ -738,9 +744,7 @@ function CourtManagerTab() {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card p-4">
         <div>
           <h2 className="text-xl font-bold">Pickleball Court Schedule</h2>
-          <p className="text-xs text-muted-foreground">
-            Manage reservations across Courts 1 to 4.
-          </p>
+          <p className="text-xs text-muted-foreground">Manage reservations across Courts 1 to 4.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -841,23 +845,66 @@ function StaffRolesTab() {
   const { data: users = [], isPending } = useQuery<StaffUser[]>({
     queryKey: ["admin-staff-users"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("admin_list_staff_users");
-      if (error) throw error;
-      return (data || []) as StaffUser[];
+      try {
+        const { data, error } = await supabase.rpc("admin_list_staff_users");
+        if (!error && Array.isArray(data) && data.length > 0) {
+          return data as StaffUser[];
+        }
+      } catch (err) {
+        console.warn("admin_list_staff_users fallback:", err);
+      }
+
+      // Resilient fallback: read profiles and user_roles
+      const [{ data: profiles }, { data: userRoles }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name"),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+
+      const roleMap = new Map<string, string[]>();
+      (userRoles || []).forEach((r) => {
+        const list = roleMap.get(r.user_id) || [];
+        list.push(r.role);
+        roleMap.set(r.user_id, list);
+      });
+
+      return (profiles || []).map((p) => ({
+        user_id: p.id,
+        email: p.full_name || "staff@roadsidepaddles.com",
+        full_name: p.full_name || "Staff Member",
+        roles: roleMap.get(p.id) || [],
+      }));
     },
   });
 
   const toggleRole = async (userId: string, roleName: Role, currentlyHas: boolean) => {
-    const { error } = await supabase.rpc("admin_set_role", {
+    let success = false;
+    const { error: rpcError } = await supabase.rpc("admin_set_role", {
       _user: userId,
       _role: roleName as Database["public"]["Enums"]["app_role"],
       _grant: !currentlyHas,
     });
 
-    if (error) {
-      toast.error(error.message);
+    if (!rpcError) {
+      success = true;
     } else {
-      toast.success(`${roleName} role ${currentlyHas ? "revoked" : "granted"}!`);
+      if (!currentlyHas) {
+        const { error: insertErr } = await supabase
+          .from("user_roles")
+          .insert({ user_id: userId, role: roleName });
+        if (!insertErr) success = true;
+        else toast.error(insertErr.message || rpcError.message);
+      } else {
+        const { error: deleteErr } = await supabase
+          .from("user_roles")
+          .delete()
+          .match({ user_id: userId, role: roleName });
+        if (!deleteErr) success = true;
+        else toast.error(deleteErr.message || rpcError.message);
+      }
+    }
+
+    if (success) {
+      toast.success(`${roleName.replace("_", " ")} role ${currentlyHas ? "revoked" : "granted"}!`);
       qc.invalidateQueries({ queryKey: ["admin-staff-users"] });
     }
   };

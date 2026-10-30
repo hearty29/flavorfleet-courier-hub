@@ -11,7 +11,7 @@ import {
   ChefHat,
   ArrowLeft,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 
 // --- SUPABASE CLIENT SETUP ---
@@ -54,36 +54,36 @@ const MENU_ITEMS: MenuItem[] = [
     name: "Classic Burger & Fries",
     price: 180,
     category: "Mains",
-    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400"
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400",
   },
   {
     id: "2",
     name: "Chicken Katsu Ala King",
     price: 195,
     category: "Mains",
-    image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400"
+    image: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400",
   },
   {
     id: "3",
     name: "Lechon Kawali Rice Bowl",
     price: 210,
     category: "Mains",
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400"
+    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
   },
   {
     id: "4",
     name: "Iced Caramel Macchiato",
     price: 120,
     category: "Drinks",
-    image: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400"
+    image: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400",
   },
   {
     id: "5",
     name: "Spanish Latte",
     price: 130,
     category: "Drinks",
-    image: "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=400"
-  }
+    image: "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=400",
+  },
 ];
 
 export default function FoodOrderingApp() {
@@ -141,16 +141,17 @@ export default function FoodOrderingApp() {
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.id === id) {
-            const newQty = item.quantity + delta;
-            return newQty > 0 ? { ...item, quantity: newQty } : null;
-          }
-          return item;
-        })
-        .filter(Boolean) as CartItem[]
+    setCart(
+      (prev) =>
+        prev
+          .map((item) => {
+            if (item.id === id) {
+              const newQty = item.quantity + delta;
+              return newQty > 0 ? { ...item, quantity: newQty } : null;
+            }
+            return item;
+          })
+          .filter(Boolean) as CartItem[],
     );
   };
 
@@ -196,8 +197,8 @@ export default function FoodOrderingApp() {
         gcash_ref: paymentMethod === "gcash" ? gcashRef : null,
         receipt_url: receiptUrl || null,
         status: "pending",
-        rider_phone: "09171234567"
-      }
+        rider_phone: "09171234567",
+      },
     ]);
 
     setLoading(false);
@@ -225,7 +226,7 @@ export default function FoodOrderingApp() {
       .from("cafe_orders")
       .update({
         status: "out_for_delivery",
-        rider_name: activeRiderName
+        rider_name: activeRiderName,
       })
       .eq("id", orderId);
 
@@ -302,7 +303,8 @@ export default function FoodOrderingApp() {
                 onClick={() => setView("cart")}
                 className="bg-orange-600 text-white text-xs px-3 py-1.5 rounded-lg font-semibold shadow flex items-center gap-1.5"
               >
-                <ShoppingBag className="w-3.5 h-3.5" /> View Cart ({totalItemsCount}) - ₱{totalAmount}
+                <ShoppingBag className="w-3.5 h-3.5" /> View Cart ({totalItemsCount}) - ₱
+                {totalAmount}
               </button>
             )}
           </div>
@@ -356,9 +358,14 @@ export default function FoodOrderingApp() {
               </button>
             </div>
           ) : (
-            <form onSubmit={handlePlaceOrder} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <form
+              onSubmit={handlePlaceOrder}
+              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4"
+            >
               <div className="space-y-3 divide-y divide-slate-100">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Order Items</h3>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Order Items
+                </h3>
                 {cart.map((item) => (
                   <div key={item.id} className="pt-3 flex items-center justify-between text-xs">
                     <div>
@@ -416,7 +423,9 @@ export default function FoodOrderingApp() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-600">Delivery Location / Sitios / Barangay</label>
+                  <label className="text-xs font-semibold text-slate-600">
+                    Delivery Location / Sitios / Barangay
+                  </label>
                   <input
                     type="text"
                     required
@@ -431,7 +440,9 @@ export default function FoodOrderingApp() {
                   <label className="text-xs font-semibold text-slate-600">Payment Option</label>
                   <select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as "counter" | "gcash" | "cod")}
+                    onChange={(e) =>
+                      setPaymentMethod(e.target.value as "counter" | "gcash" | "cod")
+                    }
                     className="w-full text-xs p-2.5 border rounded-xl mt-1 outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                   >
                     <option value="cod">Cash on delivery</option>
@@ -488,10 +499,13 @@ export default function FoodOrderingApp() {
             </div>
             <h2 className="text-xl font-bold text-slate-800">Order Placed Successfully!</h2>
             <p className="text-xs text-slate-500">
-              Your order has been sent to our kitchen and our rider notification has been triggered via SMS.
+              Your order has been sent to our kitchen and our rider notification has been triggered
+              via SMS.
             </p>
             <div className="bg-slate-50 p-3 rounded-xl text-left text-xs space-y-1 border border-slate-100">
-              <p className="font-semibold text-slate-700">Total Amount: <span className="text-emerald-700">₱{lastOrderTotal}</span></p>
+              <p className="font-semibold text-slate-700">
+                Total Amount: <span className="text-emerald-700">₱{lastOrderTotal}</span>
+              </p>
             </div>
             <div className="pt-2 flex flex-col gap-2">
               <button
@@ -548,7 +562,9 @@ export default function FoodOrderingApp() {
                     <div className="space-y-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-bold text-sm text-slate-800">{order.customer_name}</h4>
+                          <h4 className="font-bold text-sm text-slate-800">
+                            {order.customer_name}
+                          </h4>
                           <p className="text-xs text-slate-500">{order.customer_contact}</p>
                         </div>
                         <span
@@ -556,11 +572,13 @@ export default function FoodOrderingApp() {
                             order.status === "pending"
                               ? "bg-amber-100 text-amber-800"
                               : order.status === "out_for_delivery"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-emerald-100 text-emerald-800"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-emerald-100 text-emerald-800"
                           }`}
                         >
-                          {order.status === "out_for_delivery" ? "Picked Up" : order.status.replace(/_/g, " ")}
+                          {order.status === "out_for_delivery"
+                            ? "Picked Up"
+                            : order.status.replace(/_/g, " ")}
                         </span>
                       </div>
 
@@ -577,7 +595,9 @@ export default function FoodOrderingApp() {
                       <div className="text-xs bg-slate-50 p-2 rounded space-y-1">
                         {order.items.map((it, idx) => (
                           <div key={idx} className="flex justify-between text-slate-600">
-                            <span>{it.quantity}x {it.name}</span>
+                            <span>
+                              {it.quantity}x {it.name}
+                            </span>
                             <span>₱{it.price * it.quantity}</span>
                           </div>
                         ))}
@@ -588,7 +608,12 @@ export default function FoodOrderingApp() {
                       </div>
 
                       <div className="text-xs text-slate-500 flex items-center justify-between pt-1">
-                        <span>{order.payment_method === "cod" ? "Cash on delivery" : order.payment_method} · {order.location || "Tago"}</span>
+                        <span>
+                          {order.payment_method === "cod"
+                            ? "Cash on delivery"
+                            : order.payment_method}{" "}
+                          · {order.location || "Tago"}
+                        </span>
                         {order.receipt_url && (
                           <button
                             onClick={() => setSelectedReceipt(order.receipt_url || null)}

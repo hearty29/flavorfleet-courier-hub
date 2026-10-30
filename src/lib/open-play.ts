@@ -51,16 +51,20 @@ const FORM_LENGTH = 5;
  */
 export function computeStandings(
   players: Pick<OpenPlayPlayer, "id" | "name">[],
-  matches: Pick<OpenPlayMatch, "team_a" | "team_b" | "score_a" | "score_b" | "state" | "completed_at" | "created_at">[],
+  matches: Pick<
+    OpenPlayMatch,
+    "team_a" | "team_b" | "score_a" | "score_b" | "state" | "completed_at" | "created_at"
+  >[],
 ): StandingRow[] {
-  const stats = new Map<string, { wins: number; losses: number; diff: number; form: ("W" | "L")[] }>();
+  const stats = new Map<
+    string,
+    { wins: number; losses: number; diff: number; form: ("W" | "L")[] }
+  >();
   for (const p of players) stats.set(p.id, { wins: 0, losses: 0, diff: 0, form: [] });
 
   const finished = matches
     .filter((m) => m.state === "completed" && m.score_a != null && m.score_b != null)
-    .sort((a, b) =>
-      (a.completed_at ?? a.created_at).localeCompare(b.completed_at ?? b.created_at),
-    );
+    .sort((a, b) => (a.completed_at ?? a.created_at).localeCompare(b.completed_at ?? b.created_at));
 
   for (const m of finished) {
     const a = m.score_a as number;

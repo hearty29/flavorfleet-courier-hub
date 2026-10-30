@@ -2,14 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  CalendarDays, 
-  Clock, 
-  MapPin, 
-  CheckCircle2, 
-  AlertCircle, 
-  ShieldCheck, 
-  Sparkles, 
+import {
+  CalendarDays,
+  Clock,
+  MapPin,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
+  Sparkles,
   Users,
   Shield,
   Trash2,
@@ -20,7 +20,7 @@ import {
   UploadCloud,
   Eye,
   X,
-  CreditCard
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,9 +29,15 @@ export const Route = createFileRoute("/pickleball")({
   head: () => ({
     meta: [
       { title: "Pickleball Courts — Roadside Paddles" },
-      { name: "description", content: "Check live court status and reserve your pickleball court at Roadside Paddles." },
+      {
+        name: "description",
+        content: "Check live court status and reserve your pickleball court at Roadside Paddles.",
+      },
       { property: "og:title", content: "Pickleball Courts — Roadside Paddles" },
-      { property: "og:description", content: "Check live court status and reserve your pickleball court at Roadside Paddles." },
+      {
+        property: "og:description",
+        content: "Check live court status and reserve your pickleball court at Roadside Paddles.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -98,7 +104,9 @@ function PickleballPage() {
   // Check current user role from Supabase Auth safely
   useEffect(() => {
     async function checkAdminStatus() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         setIsUserAdminRole(false);
         setIsAdmin(false);
@@ -106,18 +114,18 @@ function PickleballPage() {
       }
 
       const user = session.user;
-      const userMeta = user.user_metadata as Record<string, any> | undefined;
-      const appMeta = user.app_metadata as Record<string, any> | undefined;
-      const role = appMeta?.["role"] || userMeta?.["role"];
+      const userMeta = user.user_metadata as Record<string, unknown> | undefined;
+      const appMeta = user.app_metadata as Record<string, unknown> | undefined;
+      const role = (appMeta?.["role"] || userMeta?.["role"]) as string | undefined;
 
-      if (role === "admin") {
+      if (role === "admin" || role === "court_manager") {
         setIsUserAdminRole(true);
       } else {
         const { data: userRoles } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
-          .eq("role", "admin")
+          .in("role", ["admin", "court_manager"])
           .maybeSingle();
 
         if (userRoles) {
@@ -147,7 +155,7 @@ function PickleballPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("courts").select("*");
       if (error) throw error;
-      return (data || []).map((c: any) => ({
+      return (data || []).map((c: Record<string, unknown>) => ({
         id: c.id as string,
         name: c.name as string,
         type: c.type as string,
@@ -186,7 +194,7 @@ function PickleballPage() {
   const [playerContact, setPlayerContact] = useState<string>("");
   const [paddlesNeeded, setPaddlesNeeded] = useState<number>(0);
   const [ballsNeeded, setBallsNeeded] = useState<boolean>(false);
-  
+
   // Payment states
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("counter");
   const [gcashRef, setGcashRef] = useState<string>("");
@@ -194,16 +202,17 @@ function PickleballPage() {
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [submittedBooking, setSubmittedBooking] = useState<boolean>(false);
 
-  const courtObj = courts.find((c) => c.id === selectedCourt) || courts[0] || {
-    id: "court-1",
-    name: "Court 1 — Pro Arena",
-    type: "Covered Championship Court",
-    surface: "Cushioned Acrylic",
-    rateDay: 350,
-    rateNight: 500,
-    status: "available",
-    nextSlot: "Available now"
-  };
+  const courtObj = courts.find((c) => c.id === selectedCourt) ||
+    courts[0] || {
+      id: "court-1",
+      name: "Court 1 — Pro Arena",
+      type: "Covered Championship Court",
+      surface: "Cushioned Acrylic",
+      rateDay: 350,
+      rateNight: 500,
+      status: "available",
+      nextSlot: "Available now",
+    };
 
   const isNight = selectedSlot.includes("PM") && parseInt(selectedSlot, 10) >= 6;
   const courtFee = isNight ? courtObj.rateNight : courtObj.rateDay;
@@ -214,7 +223,10 @@ function PickleballPage() {
   const { data: bookedSlots = [], refetch: refetchBookedSlots } = useQuery({
     queryKey: ["booked-slots", selectedCourt, bookingDate],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_booked_slots", { _court: selectedCourt, _date: bookingDate });
+      const { data, error } = await supabase.rpc("get_booked_slots", {
+        _court: selectedCourt,
+        _date: bookingDate,
+      });
       if (error) throw error;
       return (data ?? []) as string[];
     },
@@ -342,8 +354,9 @@ function PickleballPage() {
       toast.success(`Slot (${slotToBlock}) marked as Not Available!`);
       await queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
       refetchBookedSlots();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to block slot.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to block slot.";
+      toast.error(message);
     }
   };
 
@@ -351,39 +364,37 @@ function PickleballPage() {
   const handleCancelBookingSlot = async (slotToCancel: string) => {
     if (!isAdmin || !isUserAdminRole) return;
     try {
-      const { error: deleteErr } = await supabase
-        .from("court_bookings")
-        .delete()
-        .match({
-          court_id: selectedCourt,
-          booking_date: bookingDate,
-          time_slot: slotToCancel,
-        });
+      const { error: deleteErr } = await supabase.from("court_bookings").delete().match({
+        court_id: selectedCourt,
+        booking_date: bookingDate,
+        time_slot: slotToCancel,
+      });
 
       if (deleteErr) throw deleteErr;
 
       toast.success(`Slot (${slotToCancel}) is now marked as Available!`);
       await queryClient.invalidateQueries({ queryKey: ["booked-slots"] });
       refetchBookedSlots();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to make slot available.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to make slot available.";
+      toast.error(message);
     }
   };
 
   // Admin action: Update court status in database
-  const handleUpdateCourtStatus = async (courtId: string, newStatus: "available" | "in_use" | "maintenance") => {
+  const handleUpdateCourtStatus = async (
+    courtId: string,
+    newStatus: "available" | "in_use" | "maintenance",
+  ) => {
     if (!isUserAdminRole || !isAdmin) return;
-    
+
     const updatePayload = {
       status: newStatus,
       current_session_until: newStatus === "available" ? null : "5:00 PM",
       next_slot: newStatus === "available" ? "Available now" : `Status: ${newStatus}`,
     };
 
-    const { error } = await supabase
-      .from("courts")
-      .update(updatePayload)
-      .eq("id", courtId);
+    const { error } = await supabase.from("courts").update(updatePayload).eq("id", courtId);
 
     if (error) {
       toast.error(`Error: ${error.message}`);
@@ -408,7 +419,8 @@ function PickleballPage() {
               Pickleball Hub
             </h1>
             <p className="mt-2 text-base text-muted-foreground md:text-lg">
-              High-grade tournament courts, premium lighting, and refreshing coffee right by the sideline.
+              High-grade tournament courts, premium lighting, and refreshing coffee right by the
+              sideline.
             </p>
           </div>
 
@@ -417,14 +429,18 @@ function PickleballPage() {
             <div className="flex flex-col gap-2">
               <div className="rounded-2xl border bg-background/80 p-3 shadow-sm backdrop-blur">
                 <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground">
-                  <Shield className={`h-4 w-4 ${isAdmin ? "text-amber-500" : "text-muted-foreground"}`} />
+                  <Shield
+                    className={`h-4 w-4 ${isAdmin ? "text-amber-500" : "text-muted-foreground"}`}
+                  />
                   <span>Admin Mode</span>
                   <input
                     type="checkbox"
                     checked={isAdmin}
                     onChange={(e) => {
                       setIsAdmin(e.target.checked);
-                      toast(e.target.checked ? "Admin Controls Enabled" : "Switched to Public View");
+                      toast(
+                        e.target.checked ? "Admin Controls Enabled" : "Switched to Public View",
+                      );
                     }}
                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   />
@@ -484,10 +500,7 @@ function PickleballPage() {
                 Operating Hours: 6:00 AM – 12:00 AM Daily
               </p>
             </div>
-            <Button
-              onClick={() => setActiveTab("book")}
-              className="mt-2 sm:mt-0"
-            >
+            <Button onClick={() => setActiveTab("book")} className="mt-2 sm:mt-0">
               Reserve a Slot
             </Button>
           </div>
@@ -507,7 +520,8 @@ function PickleballPage() {
                       </span>
                     ) : court.status === "in_use" ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                        <Clock className="h-3.5 w-3.5" /> In Play {court.currentSessionUntil ? `(${court.currentSessionUntil})` : ""}
+                        <Clock className="h-3.5 w-3.5" /> In Play{" "}
+                        {court.currentSessionUntil ? `(${court.currentSessionUntil})` : ""}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
@@ -533,9 +547,7 @@ function PickleballPage() {
                     </div>
                   </div>
 
-                  <p className="mt-4 text-xs font-medium text-primary">
-                    {court.nextSlot}
-                  </p>
+                  <p className="mt-4 text-xs font-medium text-primary">{court.nextSlot}</p>
                 </div>
 
                 <div className="mt-6 flex flex-col gap-2">
@@ -612,7 +624,9 @@ function PickleballPage() {
               <MapPin className="h-5 w-5 text-primary" />
               <div>
                 <p className="font-semibold">Cafe by the Court</p>
-                <p className="text-xs text-muted-foreground">Enjoy your favorite drinks and snacks</p>
+                <p className="text-xs text-muted-foreground">
+                  Enjoy your favorite drinks and snacks
+                </p>
               </div>
             </div>
           </div>
@@ -659,19 +673,14 @@ function PickleballPage() {
               </div>
 
               <div className="mt-6 flex flex-col gap-2">
-                <Button onClick={() => setSubmittedBooking(false)}>
-                  Book Another Slot
-                </Button>
+                <Button onClick={() => setSubmittedBooking(false)}>Book Another Slot</Button>
                 <Button variant="outline" onClick={() => setActiveTab("status")}>
                   Return to Court Status
                 </Button>
               </div>
             </div>
           ) : (
-            <form
-              onSubmit={handleBookSubmit}
-              className="grid gap-8 lg:grid-cols-3"
-            >
+            <form onSubmit={handleBookSubmit} className="grid gap-8 lg:grid-cols-3">
               {/* Left Column: Form Details */}
               <div className="space-y-6 lg:col-span-2">
                 {/* Step 1: Court Selection */}
@@ -822,7 +831,9 @@ function PickleballPage() {
                     <div className="flex items-center justify-between text-sm">
                       <div>
                         <p className="font-semibold">Paddle Rental (₱50 each)</p>
-                        <p className="text-xs text-muted-foreground">Quality USAPA-approved paddles</p>
+                        <p className="text-xs text-muted-foreground">
+                          Quality USAPA-approved paddles
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -848,7 +859,9 @@ function PickleballPage() {
                     <div className="flex items-center justify-between text-sm">
                       <div>
                         <p className="font-semibold">Pickleball Can (₱120)</p>
-                        <p className="text-xs text-muted-foreground">3x Franklin X-40 tournament balls</p>
+                        <p className="text-xs text-muted-foreground">
+                          3x Franklin X-40 tournament balls
+                        </p>
                       </div>
                       <input
                         type="checkbox"
@@ -863,7 +876,7 @@ function PickleballPage() {
                 {/* Step 4: Payment Method */}
                 <div className="rounded-2xl border bg-card p-6 shadow-sm">
                   <h3 className="text-lg font-bold">4. Payment Method</h3>
-                  
+
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <button
                       type="button"
@@ -901,14 +914,16 @@ function PickleballPage() {
                         <p className="font-bold text-sm text-blue-800 dark:text-blue-300">
                           GCash Account Details
                         </p>
-                        <p className="text-muted-foreground">Account Name: <strong>Roadside Paddles</strong></p>
-                        <p className="text-muted-foreground">GCash Number: <strong className="text-foreground">0917-123-47</strong></p>
+                        <p className="text-muted-foreground">
+                          Account Name: <strong>Roadside Paddles</strong>
+                        </p>
+                        <p className="text-muted-foreground">
+                          GCash Number: <strong className="text-foreground">0917-123-47</strong>
+                        </p>
                       </div>
 
                       <div>
-                        <label className="block font-semibold mb-1">
-                          GCash Reference Number *
-                        </label>
+                        <label className="block font-semibold mb-1">GCash Reference Number *</label>
                         <input
                           type="text"
                           required
@@ -931,13 +946,21 @@ function PickleballPage() {
                             className="absolute inset-0 opacity-0 cursor-pointer"
                           />
                           <UploadCloud className="h-7 w-7 text-blue-500 mb-1" />
-                          <p className="text-xs font-semibold">Click to choose image or drop here</p>
-                          <p className="text-[10px] text-muted-foreground">PNG, JPG, WEBP up to 5MB</p>
+                          <p className="text-xs font-semibold">
+                            Click to choose image or drop here
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            PNG, JPG, WEBP up to 5MB
+                          </p>
                         </div>
 
                         {receiptPreview && (
                           <div className="mt-3 relative w-28 h-28 rounded-lg overflow-hidden border">
-                            <img src={receiptPreview} alt="Receipt preview" className="w-full h-full object-cover" />
+                            <img
+                              src={receiptPreview}
+                              alt="Receipt preview"
+                              className="w-full h-full object-cover"
+                            />
                           </div>
                         )}
                       </div>
@@ -969,7 +992,9 @@ function PickleballPage() {
                   </div>
                   {paddlesNeeded > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Paddle Rental ({paddlesNeeded}):</span>
+                      <span className="text-muted-foreground">
+                        Paddle Rental ({paddlesNeeded}):
+                      </span>
                       <span className="font-semibold">₱{paddleFee}</span>
                     </div>
                   )}
@@ -986,7 +1011,9 @@ function PickleballPage() {
                 </div>
 
                 <p className="mt-3 text-xs text-muted-foreground">
-                  {paymentMethod === "gcash" ? "GCash receipt will be verified by counter staff." : "Pay at the counter on arrival — cash or e-wallet."}
+                  {paymentMethod === "gcash"
+                    ? "GCash receipt will be verified by counter staff."
+                    : "Pay at the counter on arrival — cash or e-wallet."}
                 </p>
 
                 <Button type="submit" className="mt-5 w-full" disabled={saving}>
@@ -1005,7 +1032,9 @@ function PickleballPage() {
             <div className="flex items-center justify-between border-b pb-3">
               <div>
                 <h3 className="text-xl font-bold">Admin: All Court Bookings</h3>
-                <p className="text-xs text-muted-foreground">Review player contact info, GCash reference numbers, and payment screenshots.</p>
+                <p className="text-xs text-muted-foreground">
+                  Review player contact info, GCash reference numbers, and payment screenshots.
+                </p>
               </div>
               <Button size="icon" variant="ghost" onClick={() => setShowAdminBookingsModal(false)}>
                 <X className="h-5 w-5" />
@@ -1014,10 +1043,15 @@ function PickleballPage() {
 
             <div className="mt-4 space-y-3">
               {allBookings.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No bookings recorded yet.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No bookings recorded yet.
+                </p>
               ) : (
                 allBookings.map((b) => (
-                  <div key={b.id || `${b.court_id}-${b.booking_date}-${b.time_slot}`} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border bg-muted/30 p-4 text-xs">
+                  <div
+                    key={b.id || `${b.court_id}-${b.booking_date}-${b.time_slot}`}
+                    className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-2xl border bg-muted/30 p-4 text-xs"
+                  >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm">{b.player_name}</span>
@@ -1028,8 +1062,12 @@ function PickleballPage() {
                           {b.payment_method || "counter"}
                         </span>
                       </div>
-                      <p className="text-muted-foreground">Date: {b.booking_date} | Slot: {b.time_slot}</p>
-                      <p className="text-muted-foreground">Contact: <strong>{b.player_contact}</strong></p>
+                      <p className="text-muted-foreground">
+                        Date: {b.booking_date} | Slot: {b.time_slot}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Contact: <strong>{b.player_contact}</strong>
+                      </p>
                       {b.gcash_ref && (
                         <p className="font-semibold text-blue-600 dark:text-blue-400">
                           GCash Ref: {b.gcash_ref}
@@ -1067,7 +1105,11 @@ function PickleballPage() {
             >
               <X className="h-4 w-4" />
             </Button>
-            <img src={previewImage} alt="Payment Receipt" className="w-full h-auto max-h-[75vh] object-contain rounded-xl" />
+            <img
+              src={previewImage}
+              alt="Payment Receipt"
+              className="w-full h-auto max-h-[75vh] object-contain rounded-xl"
+            />
           </div>
         </div>
       )}

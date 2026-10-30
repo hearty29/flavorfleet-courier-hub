@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeStandings, queueOrder, validOpenPlayScore, type OpenPlayPlayer } from "../lib/open-play";
+import {
+  computeStandings,
+  queueOrder,
+  validOpenPlayScore,
+  type OpenPlayPlayer,
+} from "../lib/open-play";
 
 const players = ["A", "B", "C", "D", "E"].map((n) => ({ id: n, name: n }));
 const done = (a: string[], b: string[], sa: number, sb: number, minute: number) => ({

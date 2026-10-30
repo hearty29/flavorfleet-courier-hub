@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { peso } from "@/lib/cart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { ChatButton, SupportInbox } from '@/components/SupportChat';
+import { ChatButton, SupportInbox } from "@/components/SupportChat";
 
 export const Route = createFileRoute("/_authenticated/rider")({
   head: () => ({
@@ -56,75 +56,80 @@ function playRiderPickupSound() {
 }
 
 function OrderCard({
-    o,
-    children,
-  }: {
-    o: Database["public"]["Tables"]["orders"]["Row"] & { order_items: Database["public"]["Tables"]["order_items"]["Row"][] };
-    children?: React.ReactNode;
-  }) {
-    const cleanPhone = o.phone ? o.phone.replace(/[^0-9+]/g, "") : "";
-    const customerGreeting = o.customer_name ? ` ${o.customer_name}` : "";
-    const smsText = encodeURIComponent(
-      `Hello${customerGreeting}! I'm your Roadside Cafe delivery rider. I'm on my way with your order.`
-    );
+  o,
+  children,
+}: {
+  o: Database["public"]["Tables"]["orders"]["Row"] & {
+    order_items: Database["public"]["Tables"]["order_items"]["Row"][];
+  };
+  children?: React.ReactNode;
+}) {
+  const cleanPhone = o.phone ? o.phone.replace(/[^0-9+]/g, "") : "";
+  const customerGreeting = o.customer_name ? ` ${o.customer_name}` : "";
+  const smsText = encodeURIComponent(
+    `Hello${customerGreeting}! I'm your Roadside Cafe delivery rider. I'm on my way with your order.`,
+  );
 
-    return (
-      <article className="rounded-2xl border bg-card p-4 shadow-sm flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between">
-            <p className="font-bold">
-              {o.customer_name || "Customer"} · {peso(o.total)}
-            </p>
-            <StatusBadge status={o.status} />
-          </div>
-
-          <p className="mt-2 flex gap-2 text-sm text-foreground">
-            <MapPin className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-            <span>{o.address}</span>
+  return (
+    <article className="rounded-2xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between">
+          <p className="font-bold">
+            {o.customer_name || "Customer"} · {peso(o.total)}
           </p>
-
-          {/* Quick Contact Buttons */}
-          {cleanPhone && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button
-                asChild
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1.5 border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400"
-              >
-                <a href={`tel:${cleanPhone}`}>
-                  <Phone className="h-3.5 w-3.5 text-emerald-600" />
-                  Call
-                </a>
-              </Button>
-              <Button
-                asChild
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1.5 border-blue-600/30 text-blue-700 hover:bg-blue-50 dark:text-blue-400"
-              >
-                <a href={`sms:${cleanPhone}?body=${smsText}`}>
-                  <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
-                  SMS
-                </a>
-              </Button>
-              <span className="text-xs text-muted-foreground font-mono">{o.phone}</span>
-            </div>
-          )}
-
-          {o.notes && <p className="mt-2 text-sm text-muted-foreground">Note: {o.notes}</p>}
-          <p className="mt-2 text-sm text-muted-foreground">
-            {o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
-          </p>
-          <p className="mt-1 text-sm font-semibold">Collect cash: {peso(o.total)}</p>
-          {o.rider_id && <div className="mt-3"><ChatButton kind="order_rider" orderId={o.id} label="Chat with customer" /></div>}
+          <StatusBadge status={o.status} />
         </div>
 
-        <div className="mt-4 flex gap-2">{children}</div>
-      </article>
-    );
-  }
+        <p className="mt-2 flex gap-2 text-sm text-foreground">
+          <MapPin className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+          <span>{o.address}</span>
+        </p>
 
+        {/* Quick Contact Buttons */}
+        {cleanPhone && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400"
+            >
+              <a href={`tel:${cleanPhone}`}>
+                <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                Call
+              </a>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 border-blue-600/30 text-blue-700 hover:bg-blue-50 dark:text-blue-400"
+            >
+              <a href={`sms:${cleanPhone}?body=${smsText}`}>
+                <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+                SMS
+              </a>
+            </Button>
+            <span className="text-xs text-muted-foreground font-mono">{o.phone}</span>
+          </div>
+        )}
+
+        {o.notes && <p className="mt-2 text-sm text-muted-foreground">Note: {o.notes}</p>}
+        <p className="mt-2 text-sm text-muted-foreground">
+          {o.order_items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
+        </p>
+        <p className="mt-1 text-sm font-semibold">Collect cash: {peso(o.total)}</p>
+        {o.rider_id && (
+          <div className="mt-3">
+            <ChatButton kind="order_rider" orderId={o.id} label="Chat with customer" />
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 flex gap-2">{children}</div>
+    </article>
+  );
+}
 
 function Rider() {
   const { session, roles, loading } = useAuth();
@@ -153,26 +158,26 @@ function Rider() {
     if (!isRider) return;
     const ch = supabase
       .channel(`rider-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        (payload) => {
-          const nextOrder = payload.new as {
-            order_type?: string;
-            status?: string;
-            rider_id?: string | null;
-            id?: string;
-          };
-          // Alert rider if an order just became ready and hasn't been taken yet
-          if (nextOrder?.order_type === "delivery" && nextOrder.status === "ready" && !nextOrder.rider_id) {
-            playRiderPickupSound();
-            toast.success("🛵 New order ready for pickup!", {
-              description: "Check Available Orders below to accept.",
-            });
-          }
-          qc.invalidateQueries({ queryKey: ["rider-orders"] });
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+        const nextOrder = payload.new as {
+          order_type?: string;
+          status?: string;
+          rider_id?: string | null;
+          id?: string;
+        };
+        // Alert rider if an order just became ready and hasn't been taken yet
+        if (
+          nextOrder?.order_type === "delivery" &&
+          nextOrder.status === "ready" &&
+          !nextOrder.rider_id
+        ) {
+          playRiderPickupSound();
+          toast.success("🛵 New order ready for pickup!", {
+            description: "Check Available Orders below to accept.",
+          });
         }
-      )
+        qc.invalidateQueries({ queryKey: ["rider-orders"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -198,7 +203,6 @@ function Rider() {
   const mine = orders.filter((o) => o.rider_id === uid && o.status !== "delivered");
   const done = orders.filter((o) => o.rider_id === uid && o.status === "delivered");
 
-
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -208,7 +212,7 @@ function Rider() {
             Delivered today:{" "}
             {
               done.filter(
-                (o) => new Date(o.updated_at).toDateString() === new Date().toDateString()
+                (o) => new Date(o.updated_at).toDateString() === new Date().toDateString(),
               ).length
             }
           </p>
@@ -228,7 +232,9 @@ function Rider() {
       </div>
 
       {uid && <RiderProfilePhoto userId={uid} />}
-      <div className="mt-4"><ChatButton kind="rider_admin" label="Contact admin" /></div>
+      <div className="mt-4">
+        <ChatButton kind="rider_admin" label="Contact admin" />
+      </div>
 
       <section className="mt-6">
         <h2 className="text-xl font-bold">My active deliveries</h2>
@@ -244,14 +250,16 @@ function Rider() {
                       supabase.rpc("rider_update_status", {
                         _order: o.id,
                         _status: "picked_up",
-                      })
+                      }),
                     )
                   }
                 >
                   Picked up Order
                 </Button>
               )}
-              {o.status === "picked_up" && uid && <DeliveryProofUpload orderId={o.id} userId={uid} />}
+              {o.status === "picked_up" && uid && (
+                <DeliveryProofUpload orderId={o.id} userId={uid} />
+              )}
             </OrderCard>
           ))}
         </div>
@@ -269,8 +277,14 @@ function Rider() {
                 className="w-full"
                 disabled={!photo?.hasPhoto}
                 onClick={() => {
-                  try { requireRiderPhoto(Boolean(photo?.hasPhoto)); }
-                  catch (e) { toast.error(e instanceof Error ? e.message : "Upload your profile picture first."); return; }
+                  try {
+                    requireRiderPhoto(Boolean(photo?.hasPhoto));
+                  } catch (e) {
+                    toast.error(
+                      e instanceof Error ? e.message : "Upload your profile picture first.",
+                    );
+                    return;
+                  }
                   void act(() => supabase.rpc("rider_accept_order", { _order: o.id }));
                 }}
               >
@@ -282,10 +296,21 @@ function Rider() {
       </section>
       <section className="mt-8">
         <h2 className="text-xl font-bold">Completed deliveries</h2>
-        {!done.length && <p className="mt-1 text-sm text-muted-foreground">No completed deliveries yet.</p>}
-        <div className="mt-3 grid gap-4 md:grid-cols-2">{done.map((o) => <OrderCard key={o.id} o={o}><DeliveryProofImage path={o.proof_of_delivery_path} /></OrderCard>)}</div>
+        {!done.length && (
+          <p className="mt-1 text-sm text-muted-foreground">No completed deliveries yet.</p>
+        )}
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          {done.map((o) => (
+            <OrderCard key={o.id} o={o}>
+              <DeliveryProofImage path={o.proof_of_delivery_path} />
+            </OrderCard>
+          ))}
+        </div>
       </section>
-      <section className="mt-8"><h2 className="mb-3 text-xl font-bold">My conversations</h2><SupportInbox /></section>
+      <section className="mt-8">
+        <h2 className="mb-3 text-xl font-bold">My conversations</h2>
+        <SupportInbox />
+      </section>
     </main>
   );
 }
