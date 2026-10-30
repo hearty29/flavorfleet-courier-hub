@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function SiteHeader() {
-  const { session, roles } = useAuth();
+  const { session, roles, isStaff, isAdmin } = useAuth();
   const { count } = useCart();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -39,7 +39,6 @@ export function SiteHeader() {
     navigate({ to: "/auth", replace: true });
   };
 
-  const isAdmin = roles.includes("admin");
   const isRider = roles.includes("rider");
 
   return (
@@ -71,10 +70,11 @@ export function SiteHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              {isAdmin && (
+              {isStaff && (
                 <DropdownMenuItem asChild>
                   <Link to="/admin">
-                    <Shield className="mr-2 h-4 w-4" /> Admin
+                    <Shield className="mr-2 h-4 w-4 text-primary" />
+                    {isAdmin ? "Admin Panel" : "Staff Portal"}
                   </Link>
                 </DropdownMenuItem>
               )}
@@ -85,7 +85,7 @@ export function SiteHeader() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {!isAdmin && !isRider && (
+              {!isStaff && !isRider && (
                 <DropdownMenuItem asChild>
                   <Link to="/apply-rider">
                     <Bike className="mr-2 h-4 w-4" /> Apply as Rider
