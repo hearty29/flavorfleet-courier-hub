@@ -43,7 +43,7 @@ export function SiteHeader() {
 
         <nav
           aria-label="Main navigation"
-          className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-2 sm:gap-x-3"
+          className="flex w-full flex-nowrap items-center justify-start gap-x-1 overflow-x-auto pb-1 [scrollbar-width:none] lg:justify-center [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
         >
           {roles.includes("admin") && (
             <Button asChild variant="ghost" size="sm" className="px-3">
